@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+# vim: set tabstop=4 shiftwidth=4 expandtab filetype=python
+
+import copy, os, luminaire.toolchain
+
+Frontend.target("ARCH",{"x86_64"},"x86_64")
+Frontend.target("MODE",{"debug","release"},"debug")
+
+def condition(source):
+    a = os.path.splitext(source)[1] == ".cc"
+    b = os.path.splitext(source)[1] == ".cpp"
+    c = os.path.isfile(source)
+    return (a or b) and c
+def transform(header):
+    source = os.path.splitext(header)[0] + ".cc"
+    source = source.replace("include","src")
+    if condition(source): return source
+    source = os.path.splitext(header)[0] + ".cpp"
+    source = source.replace("include","src")
+    return source if condition(source) else None
+
+@Frontend.first
+def configure(context):
+    luminaire.toolchain.AUTOMATIC_CXX_BUILDER(context,"builder")
+    context.builder.append_cflag("-DLC_BUILD_NOCXX=1")
+    context.builder.append_cflag("-DCPPUTEST_USE_STD_C_LIB=1")
+    context.builder.append_cflag("-DCPPUTEST_USE_STD_CPP_LIB=0")
+    context.builder.append_cflag("-DCPPUTEST_USE_MEM_LEAK_DETECTION=0")
+    context.builder.append_cflag("-std=c++2a")
+    context.builder.append_cflag("-Wall")
+    context.builder.append_cflag("-Wextra")
+    context.builder.append_cflag("-Werror")
+    context.builder.append_cflag("-pedantic")
+    #context.builder.append_cflag("-Weverything")
+    #context.builder.append_cflag("-Reverything")
+    # relax some of the extreme constraints
+    context.builder.append_cflag("-Wno-c++98-compat")
+    context.builder.append_cflag("-Wno-c++98-compat-pedantic")
+    context.builder.append_cflag("-Wno-weak-vtables")
+    context.builder.append_cflag("-Wno-padded")
+    # disable some of the c++ features that are unused
+    context.builder.append_cflag("-fno-rtti")
+    context.builder.append_cflag("-fno-exceptions")
+    context.builder.append_cflag("-fno-threadsafe-statics")
+    if context.defined(MODE="release"):
+        luminaire.toolchain.OPTIMIZED(context.builder,optimize='s')
+        luminaire.toolchain.STRIP(context.builder)
+        luminaire.toolchain.PRUNE(context.builder)
+        # link-time optimization directives
+        context.builder.append_cflag("-flto")
+        context.builder.append_lflag("-flto")
+        context.builder.append_cflag("-S")
+        context.builder.append_lflag("-x ir")
+    if context.defined(MODE="debug"):
+        luminaire.toolchain.UNOPTIMIZED(context.builder)
+        luminaire.toolchain.DEBUGGING(context.builder)
+        sanitizers = []
+        sanitizers.append("address")
+        sanitizers.append("alignment")
+        sanitizers.append("bool")
+        sanitizers.append("bounds")
+        sanitizers.append("enum")
+        sanitizers.append("float-cast-overflow")
+        sanitizers.append("float-divide-by-zero")
+        sanitizers.append("integer-divide-by-zero")
+        sanitizers.append("nonnull-attribute")
+        sanitizers.append("null")
+        # sanitizers.append("nullability-arg")
+        # sanitizers.append("nullability-assign")
+        # sanitizers.append("nullability-return")
+        # sanitizers.append("pointer-overflow")
+        sanitizers.append("return")
+        sanitizers.append("returns-nonnull-attribute")
+        sanitizers.append("shift")
+        sanitizers.append("signed-integer-overflow")
+        sanitizers.append("unreachable")
+        sanitizers.append("unsigned-integer-overflow")
+        sanitizers.append("vla-bound")
+        sanitizers_string = "-fsanitize={0}".format(",".join(sanitizers))
+        context.builder.append_cflag(sanitizers_string)
+        context.builder.append_lflag(sanitizers_string)
+    context.builder.append_cflag("-isystem packages/cpputest/include")
+    context.builder.append_include("include")
+    context.search(path="src/main.cc",condition=condition)
+    context.search(path="packages/cpputest/src/Platforms/Gcc",condition=condition)
+    context.search(path="packages/cpputest/src/CppUTest",condition=condition)
+    context.search(path="test",condition=condition)
+
+@Frontend.rule(["build/{ARCH}/{MODE}/*.o"],["build/{ARCH}/{MODE}/unittest"])
+def link(context,inputs,outputs):
+    context.builder.link_executable(inputs[0],outputs[0])
+@Frontend.rule(["%.{cc,cpp}"],["build/{ARCH}/{MODE}/{0}.o","build/{ARCH}/{MODE}/{0}.d"])
+def compile_source(context,inputs,outputs):
+    context.builder.compile_source(inputs[0],outputs[0])
+    context.builder.perform_search(context,transform,outputs[1])
