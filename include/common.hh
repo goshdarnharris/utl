@@ -1,19 +1,19 @@
 /* vim: set tabstop=4 shiftwidth=4 expandtab filetype=cpp : */
 
-#ifndef COMMON_LUMINAIRE_COMMON_HH_
-#define COMMON_LUMINAIRE_COMMON_HH_
+#ifndef UTL_COMMON_HH_
+#define UTL_COMMON_HH_
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#define LC_UNUSED __attribute__((unused))
+#define UTL_UNUSED __attribute__((unused))
 
-#ifndef LC_BUILD_NOCXX
-#define LC_BUILD_NOCXX 0
+#ifndef UTL_BUILD_NOCXX
+#define UTL_BUILD_NOCXX 0
 #endif
 
-#if LC_BUILD_NOCXX == 1
+#if UTL_BUILD_NOCXX == 1
 
 namespace std {
 
@@ -27,9 +27,9 @@ inline void terminate(void)
 
 extern void* operator new(size_t size, void* where);
 
-#endif // LC_BUILD_NOCXX
+#endif // UTL_BUILD_NOCXX
 
-namespace luminaire {
+namespace utl {
 
 using uintb1_t = uint8_t;
 using uintb2_t = uint16_t;
@@ -42,8 +42,7 @@ using sintb8_t = int64_t;
 
 template <typename... Ts> void maybe_unused(Ts&&...) {}
 
-} // namespace luminaire
+} // namespace utl
 
-namespace lmn = luminaire;
 
-#endif // COMMON_LUMINAIRE_COMMON_HH_
+#endif // UTL_COMMON_HH_
