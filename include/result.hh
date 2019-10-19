@@ -12,6 +12,7 @@ namespace utl {
 
 struct value_tag {};
 struct error_tag {};
+struct in_place_t {};
 
 namespace detail {
     struct uninitialized_tag{};
@@ -63,12 +64,45 @@ struct storage_trivial_destruct {
         : m_value{std::forward<U>(value)}, m_has_value{true}
     {}
 
+    constexpr storage_trivial_destruct(in_place_t, value_tag)
+        : m_value{}, m_has_value{true}
+    {}
+
+    template <typename... Args>
+    constexpr storage_trivial_destruct(in_place_t, value_tag, Args&&... args)
+        : m_value{std::forward<Args>(args)...}, m_has_value{true}
+    {}
+
     template <typename U>
     constexpr storage_trivial_destruct(error_tag, U&& error) 
         : m_error{std::forward<U>(error)}, m_has_value{false}
     {}
 
+    constexpr storage_trivial_destruct(in_place_t, error_tag)
+        : m_error{}, m_has_value{false}
+    {}
+
+    template <typename... Args>
+    constexpr storage_trivial_destruct(in_place_t, error_tag, Args&&... args)
+        : m_error{std::forward<Args>(args)...}, m_has_value{false}
+    {}
+
     constexpr void destroy() {}
+
+    //FIXME: these aren't quite there.
+    // - support rvalues
+    // - useful error messages if types aren't copyable/movable
+    void set_error(E& error) {
+        destroy();
+        m_has_value = false;
+        m_error = error;
+    }
+
+    void set_value(T& value) {
+        destroy();
+        m_has_value = true;
+        m_value = value;
+    }
 
 protected:
     //The nontrival copy & move constructors can't initialize
@@ -114,9 +148,27 @@ struct storage_nontrivial_destruct {
         : m_value{std::forward<U>(value)}, m_has_value{true}
     {}
 
+    constexpr storage_nontrivial_destruct(in_place_t, value_tag)
+        : m_value{}, m_has_value{true}
+    {}
+
+    template <typename... Args>
+    constexpr storage_nontrivial_destruct(in_place_t, value_tag, Args&&... args)
+        : m_value{std::forward<Args>(args)...}, m_has_value{true}
+    {}
+
     template <typename U>
     constexpr storage_nontrivial_destruct(error_tag, U&& error) 
         : m_error{std::forward<U>(error)}, m_has_value{false}
+    {}
+
+    constexpr storage_nontrivial_destruct(in_place_t, error_tag)
+        : m_error{}, m_has_value{false}
+    {}
+
+    template <typename... Args>
+    constexpr storage_nontrivial_destruct(in_place_t, error_tag, Args&&... args)
+        : m_error{std::forward<Args>(args)...}, m_has_value{false}
     {}
 
     constexpr void destroy() {
@@ -129,6 +181,21 @@ struct storage_nontrivial_destruct {
                 m_error.~E();
             }
         }
+    }
+
+    //FIXME: these aren't quite there.
+    // - support rvalues
+    // - useful error messages if types aren't copyable/movable
+    void set_error(E& error) {
+        destroy();
+        m_has_value = false;
+        m_error = error;
+    }
+
+    void set_value(T& value) {
+        destroy();
+        m_has_value = true;
+        m_value = value;
     }
 
     ~storage_nontrivial_destruct() {
@@ -389,15 +456,55 @@ using select_union_types_t = select_storage_move_construct_t<
 template <typename T, typename E>
 using select_storage_t = select_union_types_t<T,E>;
 
+
+template <class T>
+struct default_observer_policy {
+    using return_t = T&;
+
+    static constexpr T& get(T& storage) {
+        return storage;
+    }
+
+    static constexpr T const& get(T const& storage) {
+        return storage;
+    }
+};
+
+template <class T>
+struct default_observer_policy<T&> {
+    using return_t = T&;
+
+    static constexpr T& get(std::reference_wrapper<T>& storage) {
+        return storage.get();
+    }
+
+    static constexpr T const& get(std::reference_wrapper<T> const& storage) {
+        return storage.get();
+    }
+};
+
+template <>
+struct default_observer_policy<void> {
+    using return_t = void;
+
+    static constexpr void get(detail::void_value_t) {}
+};
+
 //Finally we have the result type.
-template <typename T, typename E = error_code>
+template <typename T, typename E = error_code, 
+    template<class> typename value_observer = default_observer_policy,
+    template<class> typename error_observer = default_observer_policy
+>
 class [[nodiscard]] result {
+protected:
     using value_traits = traits<T>;
     using error_traits = traits<E>;
     using value_storage_t = typename value_traits::storage_t;
     using error_storage_t = typename error_traits::storage_t;
     using value_return_t = typename value_traits::return_t;
-    using error_return_t = typename error_traits::return_t;  
+    using error_return_t = typename error_traits::return_t; 
+    using value_observer_t = value_observer<T>; 
+    using error_observer_t = error_observer<E>;
 
     using storage_predicate = storage_predicate<T, E>;
 
@@ -408,6 +515,10 @@ class [[nodiscard]] result {
     storage_class_t m_storage;
 
 public:
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1a169324919b76e51947a2603e68a4eeb6097d6e
     //A result is only default constructible if its value type is void.
     //In that case, calling result<void,E>{} will give you a result that's
     //"holding" a void value. This is useful if you have a void function
@@ -417,20 +528,32 @@ public:
     template <typename U = T, std::enable_if_t<traits<U>::is_void, int*> = nullptr>
     result() : m_storage{value_tag{}, detail::void_value_t{}} {}
 
-    template <typename U, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
-    constexpr result(value_tag, U&& value) : m_storage{value_tag{}, std::forward<U>(value)}
-    {}
-
-    //This is the equivalent of the previous constructor, but for the void 
-    //case. It's here because if T is void, we can't expect the user to provide
-    //a value.
     template <typename U = T, std::enable_if_t<traits<U>::is_void, int*> = nullptr>
     constexpr result(value_tag) : m_storage{value_tag{}, detail::void_value_t{}}
     {}
+    
+    template <typename U = T, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
+    constexpr result(value_tag, U&& value) : m_storage{value_tag{}, std::forward<U>(value)}
+    {}
+
+    template <typename U = T, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
+    constexpr result(in_place_t, value_tag)
+        : m_storage{in_place_t{}, value_tag{}} {}
+    
+    template <typename... Args>
+    constexpr result(in_place_t, value_tag, Args&&... args) 
+        : m_storage{in_place_t{}, value_tag{}, std::forward<Args>(args)...} {}
 
     template <typename U>
     constexpr result(error_tag, U&& error) : m_storage{error_tag{}, std::forward<U>(error)}
     {}
+
+    constexpr result(in_place_t, error_tag)
+        : m_storage{in_place_t{}, error_tag{}} {}    
+
+    template <typename... Args>
+    constexpr result(in_place_t, error_tag, Args&&... args) 
+        : m_storage{in_place_t{}, error_tag{}, std::forward<Args>(args)...} {}
 
     //We only want to enable this and the next constructor if T and E cannot be
     //converted between each other (that is, if it is valid to say T foo{E} or E foo{T},
@@ -450,63 +573,35 @@ public:
     constexpr bool has_value() const { return m_storage.m_has_value; }
     constexpr bool is_error() const { return !has_value(); }
 
-    //This value will either return a T& (a reference to the contained
-    //value), T (in the case where T is already a reference), or void
-    //(if T is void).
-    constexpr std::add_lvalue_reference_t<value_return_t> value() & {
+    constexpr auto& value() & {
         // this doesn't seem to be available?
         // if constexpr(!std::is_constant_evaluated()) {
         //     if(!has_value()) printf("oh no");
         // }
 
-        if constexpr(value_traits::is_lvalue_ref) {
-            //If the value is actually a reference type, we need
-            //to unwrap it (see above; unions can't hold references).
-            return m_storage.m_value.get();
-        } else if constexpr(value_traits::is_void) {
-            //If it's void, we don't return anything.
-            return;
-        } else {
-            return m_storage.m_value; 
-        }
+        return value_observer_t::get(m_storage.m_value);
     }
 
-    constexpr error_return_t& error() & { 
+    constexpr auto& error() & { 
         // if constexpr(!std::is_constant_evaluated()) {
         //     if(has_value()) printf("oh no");
         // }
-
-        if constexpr(error_traits::is_lvalue_ref) {
-            return m_storage.m_error.get();
-        } else {
-            return m_storage.m_error; 
-        }
+        return error_observer_t::get(m_storage.m_error);
     }
 
-    constexpr std::add_lvalue_reference_t<const value_return_t> value() const& { 
+    constexpr auto& value() const& { 
         // if constexpr(!std::is_constant_evaluated()) {
         //     if(!has_value()) printf("oh no");
         // }
-
-        if constexpr(value_traits::is_lvalue_ref) {
-            return m_storage.m_value.get();
-        } else if constexpr(value_traits::is_void) {
-            return;
-        } else {
-            return m_storage.m_value; 
-        }
+        return value_observer_t::get(m_storage.m_value);
     }
 
-    constexpr const error_return_t& error() const& { 
+    constexpr auto& error() const& { 
         // if constexpr(!std::is_constant_evaluated()) {
         //     if(has_value()) printf("oh no");
         // }
 
-        if constexpr(error_traits::is_lvalue_ref) {
-            return m_storage.m_error.get();
-        } else {
-            return m_storage.m_error; 
-        }
+        return error_observer_t::get(m_storage.m_error);
     }
 
     //Don't allow value/error unboxing on rvalue results. An rvalue is
@@ -518,8 +613,8 @@ public:
     //definitely haven't checked whether it contains a value or not. Put
     //another way, it's impossible to check if a result contains
     //something _and_ extract the value if it's an rvalue.
-    constexpr std::add_rvalue_reference_t<value_return_t> value() && = delete;
-    constexpr std::add_rvalue_reference_t<value_return_t> error() && = delete;
+    constexpr auto value() && -> const typename value_observer_t::return_t = delete;
+    constexpr auto error() && -> const typename error_observer_t::return_t = delete;
 };
 
 //Finally, these functions are a convenience for cases where
@@ -528,18 +623,18 @@ public:
 //"return result<T,E>{value_tag{},T}", 
 //for example, these allow them to say "return success(T);"
 template <typename T, typename E = error_code>
-static constexpr auto failure(T&& error) -> result<T,E>&& {
+static constexpr auto failure(T&& error) -> result<T,E> {
     return {error_tag{}, std::forward<T>(error)};
 }
 
 template <typename T, typename E = error_code>
-static constexpr auto success(T&& value) -> result<T,E>&& {
+static constexpr auto success(T&& value) -> result<T,E> {
     return {value_tag{}, std::forward<T>(value)};
 }
 
 //And a version to handle the case where T is void.
-template <typename E>
-static constexpr auto success() -> result<void,E>&& {
+template <typename E = error_code>
+static constexpr auto success() -> result<void,E> {
     return {value_tag{}};
 }
 

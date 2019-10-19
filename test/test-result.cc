@@ -195,6 +195,13 @@ TEST(Result,NonVoidNotDefaultConstructible)
     CHECK(!std::is_default_constructible_v<utl::result<int>>)
 }
 
+<<<<<<< HEAD
+=======
+//FIXME: add tests for:
+// - default constructible
+// - various kinds of constructibility/assignability with in-place
+
+>>>>>>> 1a169324919b76e51947a2603e68a4eeb6097d6e
 TEST(Result,VoidValueWithValue)
 {
     utl::result<void> res{};
@@ -213,6 +220,28 @@ TEST(Result,VoidValueWithError)
     CHECK(!res.has_value());
 }
 
+<<<<<<< HEAD
+=======
+TEST(Result,InPlaceValue)
+{
+    utl::result<Foo> res{utl::in_place_t{}, utl::value_tag{}, 10u};
+    CHECK(res.has_value());
+    CHECK(res.value().a == 10);
+}
+
+TEST(Result,InPlaceValueNoncopyable)
+{
+    utl::result<awful::noncopyable> res{utl::in_place_t{}, utl::value_tag{}, awful::noncopyable{}};
+    CHECK(res.has_value());
+}
+
+TEST(Result,InPlaceError)
+{
+    utl::result<Foo> res{utl::in_place_t{}, utl::error_tag{}, utl::system_error::UNKNOWN};
+    CHECK(!res.has_value());
+}
+
+>>>>>>> 1a169324919b76e51947a2603e68a4eeb6097d6e
 // { //rvalue reference
 //     Foo obj{};
 //     if(auto res = obj.move_a(false)) {

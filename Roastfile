@@ -22,7 +22,7 @@ def transform(header):
 @Frontend.first
 def configure(context):
     luminaire.toolchain.AUTOMATIC_CXX_BUILDER(context,"builder")
-    context.builder.append_cflag("-DLC_BUILD_NOCXX=1")
+    context.builder.append_cflag("-DUTL_BUILD_NOCXX=1")
     context.builder.append_cflag("-DCPPUTEST_USE_STD_C_LIB=1")
     context.builder.append_cflag("-DCPPUTEST_USE_STD_CPP_LIB=0")
     context.builder.append_cflag("-DCPPUTEST_USE_MEM_LEAK_DETECTION=0")
@@ -55,7 +55,7 @@ def configure(context):
         luminaire.toolchain.UNOPTIMIZED(context.builder)
         luminaire.toolchain.DEBUGGING(context.builder)
         sanitizers = []
-        sanitizers.append("address")
+        # sanitizers.append("address")
         sanitizers.append("alignment")
         sanitizers.append("bool")
         sanitizers.append("bounds")
@@ -81,6 +81,7 @@ def configure(context):
         context.builder.append_lflag(sanitizers_string)
     context.builder.append_cflag("-isystem packages/cpputest/include")
     context.builder.append_include("include")
+    context.builder.append_include(".")
     context.search(path="src/main.cc",condition=condition)
     context.search(path="packages/cpputest/src/Platforms/Gcc",condition=condition)
     context.search(path="packages/cpputest/src/CppUTest",condition=condition)
@@ -91,5 +92,5 @@ def link(context,inputs,outputs):
     context.builder.link_executable(inputs[0],outputs[0])
 @Frontend.rule(["%.{cc,cpp}"],["build/{ARCH}/{MODE}/{0}.o","build/{ARCH}/{MODE}/{0}.d"])
 def compile_source(context,inputs,outputs):
-    context.builder.compile_source(inputs[0],outputs[0])
+    context.builder.compile_source(inputs[0],outputs[0])    
     context.builder.perform_search(context,transform,outputs[1])
