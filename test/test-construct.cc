@@ -5,6 +5,7 @@
 #include "packages/libawful/include/awful.hpp"
 #include "test-types.hh"
 #include "utl.hh"
+#include "system-error.hh"
 
 TEST_GROUP(Construct) {
 

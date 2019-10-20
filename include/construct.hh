@@ -5,22 +5,6 @@
 
 namespace utl {
 
-// template <typename T, typename... Args>
-// constexpr result<T> construct(Args... args) {
-//     struct detail : public T {
-//         constexpr detail(Args... args) : T{args...} {}
-//         result<void> init() { return T::init(); }
-//     };
-    
-//     auto obj = detail{args...};
-//     auto res = obj.init();
-//     if(res) {
-//         return static_cast<T>(obj);
-//     } else {
-//         return res.error();
-//     }
-// }
-
 //TODO list
 // - enforce that all constructors & a validate method are protected on T.
 // - implement policies on result
@@ -83,7 +67,6 @@ struct construct : public detail::result_t<T> {
     {
         auto res = m_storage.m_value.validate();
         if(!res) {
-            //expand this to handle the case where res is not a result?
             m_storage.set_error(res.error());
         }
     }

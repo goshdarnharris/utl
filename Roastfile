@@ -81,6 +81,7 @@ def configure(context):
         context.builder.append_lflag(sanitizers_string)
     context.builder.append_cflag("-isystem packages/cpputest/include")
     context.builder.append_include("include")
+    context.builder.append_include("test-platform")
     context.builder.append_include(".")
     context.search(path="src/main.cc",condition=condition)
     context.search(path="packages/cpputest/src/Platforms/Gcc",condition=condition)

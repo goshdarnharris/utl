@@ -1,6 +1,7 @@
 /* vim: set tabstop=4 shiftwidth=4 expandtab filetype=cpp : */
 
 #include "result.hh"
+#include "system-error.hh"
 #include <CppUTest/TestHarness.h>
 #include "packages/libawful/include/awful.hpp"
 

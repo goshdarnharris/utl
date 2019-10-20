@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string_view>
 
 #define UTL_UNUSED __attribute__((unused))
 
@@ -31,6 +32,9 @@ extern void* operator new(size_t size, void* where);
 
 namespace utl {
 
+using string_view = std::string_view;
+using namespace std::literals;
+
 using uintb1_t = uint8_t;
 using uintb2_t = uint16_t;
 using uintb4_t = uint32_t;
@@ -44,5 +48,7 @@ template <typename... Ts> void maybe_unused(Ts&&...) {}
 
 } // namespace utl
 
+#include "utl-platform.hh"
+#include "error.hh"
 
 #endif // UTL_HH_

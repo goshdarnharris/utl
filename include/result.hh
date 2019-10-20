@@ -634,6 +634,10 @@ static constexpr auto success() -> result<void,E> {
     return {value_tag{}};
 }
 
+template <typename T, typename E>
+static constexpr void ignore_result(result<T,E> res) {
+    utl::maybe_unused(res);
+}
 
 //TODO: implement some compile-time tests here with static asserts.
 
