@@ -35,8 +35,8 @@ struct error_code {
 
     //This needs to use make_error_code on the templated
     //enum type.
-    constexpr error_code(int32_t value, const error_category* category) 
-     : value{value}, category{category} {}
+    constexpr error_code(int32_t val, const error_category* cat) 
+     : value{val}, category{cat} {}
 
     template <typename T, typename std::enable_if<is_error_code_enum<T>::value, int*>::type = nullptr>
     constexpr error_code(T code) : error_code{make_error_code(code)} {}
