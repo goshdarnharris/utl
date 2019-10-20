@@ -24,7 +24,7 @@ struct construct_me {
     bool m_valid;
     
 protected:
-    construct_me(bool valid) : m_data{10}, m_valid{valid} {}
+    construct_me(int value, bool valid) : m_data{value}, m_valid{valid} {}
     utl::result<void> validate() {
         if(m_valid) {
             return utl::success();
@@ -43,10 +43,11 @@ struct tracked_constructible : utl::tracked {
 
 TEST(Construct,Construction)
 {
-    auto obj = utl::construct<construct_me>{true};
+    auto obj = utl::construct<construct_me>{5, true};
     CHECK(static_cast<bool>(obj));
+    CHECK(obj.value().m_data == 5);
 
-    auto obj2 = utl::construct<construct_me>{false};
+    auto obj2 = utl::construct<construct_me>{5, false};
     CHECK(!static_cast<bool>(obj2));
 }
 

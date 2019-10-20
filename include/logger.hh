@@ -71,11 +71,12 @@ void log(utl::string_view const& format, Args&&... args) {
 
     auto res = logger::detail::get_global_output()->write({buffer,length});
     ignore_result(res);
+    ignore_result(logger::detail::get_global_output()->write("\r\n"_sv));
 }
 
 template <typename... Args>
 void log(const char * format, Args&&... args) {
-    log(utl::string_view{format,strlen(format)}, std::forward<Args>(args)...);
+    log({format,strlen(format)}, std::forward<Args>(args)...);
 }
 
 #pragma clang diagnostic pop

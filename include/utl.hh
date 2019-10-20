@@ -32,8 +32,21 @@ extern void* operator new(size_t size, void* where);
 
 namespace utl {
 
-using string_view = std::string_view;
-using namespace std::literals;
+// using string_view = std::string_view;
+
+struct string_view {
+    const char * const string;
+    const size_t length;
+
+    constexpr const char* data() const { return string; }
+    constexpr size_t size() const { return length; }
+};
+
+namespace literals {
+inline constexpr string_view operator ""_sv(const char* str, size_t len) { return{str,len}; }
+}
+
+using namespace literals;
 
 using uintb1_t = uint8_t;
 using uintb2_t = uint16_t;
