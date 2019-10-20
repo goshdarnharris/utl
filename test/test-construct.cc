@@ -4,7 +4,7 @@
 #include <CppUTest/TestHarness.h>
 #include "packages/libawful/include/awful.hpp"
 #include "test-types.hh"
-#include "common.hh"
+#include "utl.hh"
 
 TEST_GROUP(Construct) {
 

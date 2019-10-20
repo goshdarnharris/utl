@@ -515,10 +515,6 @@ protected:
     storage_class_t m_storage;
 
 public:
-<<<<<<< HEAD
-=======
-
->>>>>>> 1a169324919b76e51947a2603e68a4eeb6097d6e
     //A result is only default constructible if its value type is void.
     //In that case, calling result<void,E>{} will give you a result that's
     //"holding" a void value. This is useful if you have a void function

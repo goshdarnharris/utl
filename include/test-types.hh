@@ -2,7 +2,7 @@
 #define UTL_TEST_TYPES_HH_
 
 #include <stdint.h>
-#include "common.hh"
+#include "utl.hh"
 
 namespace utl {
 

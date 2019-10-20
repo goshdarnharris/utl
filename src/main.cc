@@ -1,5 +1,5 @@
 /* vim: set tabstop=4 shiftwidth=4 expandtab filetype=cpp : */
-#include "common.hh"
+#include "utl.hh"
 #include <CppUTest/CommandLineTestRunner.h>
 
 extern "C" int main(int argc, char* argv[]);
