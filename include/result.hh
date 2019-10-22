@@ -89,6 +89,20 @@ struct storage_trivial_destruct {
 
     constexpr void destroy() {}
 
+    template <typename... Args>
+    void emplace(error_tag, Args&&... args) {
+        destroy();
+        m_has_value = false;
+        new (&m_error) error_t{std::forward<Args>(args)...};
+    }
+
+    template <typename... Args>
+    void emplace(value_tag, Args&&... args) {
+        destroy();
+        m_has_value = true;
+        new (&m_value) value_t{std::forward<Args>(args)...};
+    }
+
     //FIXME: these aren't quite there.
     // - support rvalues
     // - useful error messages if types aren't copyable/movable
@@ -183,6 +197,20 @@ struct storage_nontrivial_destruct {
         }
     }
 
+    template <typename... Args>
+    void emplace(error_tag, Args&&... args) {
+        destroy();
+        m_has_value = false;
+        new (&m_error) error_t{std::forward<Args>(args)...};
+    }
+
+    template <typename... Args>
+    void emplace(value_tag, Args&&... args) {
+        destroy();
+        m_has_value = true;
+        new (&m_value) value_t{std::forward<Args>(args)...};
+    }
+
     //FIXME: these aren't quite there.
     // - support rvalues
     // - useful error messages if types aren't copyable/movable
@@ -262,6 +290,8 @@ struct storage_nontrivial_copy_construct : public Base {
     using Base::m_value;
     using Base::m_error;
     using Base::Base;
+    using value_t = typename Base::value_t;
+    using error_t = typename Base::error_t;
 
     ~storage_nontrivial_copy_construct() = default;
     constexpr storage_nontrivial_copy_construct(storage_nontrivial_copy_construct const& that) 
@@ -287,6 +317,8 @@ struct storage_nontrivial_copy_assign : public Base {
     using Base::m_error;
     using Base::destroy;
     using Base::Base;
+    using value_t = typename Base::value_t;
+    using error_t = typename Base::error_t;
 
     ~storage_nontrivial_copy_assign() = default;
     constexpr storage_nontrivial_copy_assign(storage_nontrivial_copy_assign const& that) = default;
@@ -320,6 +352,8 @@ struct storage_nontrivial_move_construct : public Base {
     using Base::m_value;
     using Base::m_error;
     using Base::Base;
+    using value_t = typename Base::value_t;
+    using error_t = typename Base::error_t;
 
     ~storage_nontrivial_move_construct() = default;
     constexpr storage_nontrivial_move_construct(storage_nontrivial_move_construct const& that) = default;
@@ -345,6 +379,8 @@ struct storage_nontrivial_move_assign : public Base {
     using Base::m_error;
     using Base::destroy;
     using Base::Base;
+    using value_t = typename Base::value_t;
+    using error_t = typename Base::error_t;
 
     ~storage_nontrivial_move_assign() = default;
     constexpr storage_nontrivial_move_assign(storage_nontrivial_move_assign const& that) = default;
@@ -515,6 +551,8 @@ protected:
     storage_class_t m_storage;
 
 public:
+    using value_t = typename storage_class_t::value_t;
+    using error_t = typename storage_class_t::error_t;
     //A result is only default constructible if its value type is void.
     //In that case, calling result<void,E>{} will give you a result that's
     //"holding" a void value. This is useful if you have a void function
@@ -639,6 +677,15 @@ static constexpr void ignore_result(result<T,E> res) {
     utl::maybe_unused(res);
 }
 
+
+template <typename T>
+struct is_result : std::false_type {};
+
+template <typename T, typename E>
+struct is_result<result<T,E>> : std::true_type {};
+
+template <typename T>
+static constexpr bool is_result_v = is_result<T>::value;
 //TODO: implement some compile-time tests here with static asserts.
 
 } //namespace utl
