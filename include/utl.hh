@@ -11,7 +11,7 @@
 #define UTL_UNUSED __attribute__((unused))
 
 #ifndef UTL_BUILD_NOCXX
-#define UTL_BUILD_NOCXX 0
+#define UTL_BUILD_NOCXX 1
 #endif
 
 #if UTL_BUILD_NOCXX == 1

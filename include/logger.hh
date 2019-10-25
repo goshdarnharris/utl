@@ -38,7 +38,6 @@ struct output : detail::output_base {
     T const * const writer;
 
     output(T const& w) : writer{&w} {}
-    output(construct<T> const& w) : writer{w ? &w.value() : nullptr} {}
 
     result<void> write(utl::string_view const& s) const final {
         if(writer != nullptr) return writer->write(s);

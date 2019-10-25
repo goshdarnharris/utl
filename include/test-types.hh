@@ -18,24 +18,32 @@ struct tracked {
         construction_kind construction;
         uint32_t copy_assigned;
         uint32_t move_assigned;
+        uint32_t moved_from;
     } m_state;
 
-    tracked() : m_state{construction_kind::dfault,0,0} {}
+    tracked() : m_state{construction_kind::dfault,0,0,0} {}
 
     template <typename... Args>
-    tracked(Args... args) : m_state{construction_kind::regular,0,0} {
+    tracked(Args... args) : m_state{construction_kind::regular,0,0,0} {
         utl::maybe_unused(args...);
     }
 
     ~tracked() = default;
 
     tracked(tracked const& other) 
-        : m_state{construction_kind::copy,other.m_state.copy_assigned,other.m_state.move_assigned} 
+        : m_state{construction_kind::copy,
+            other.m_state.copy_assigned,other.m_state.move_assigned,
+            other.m_state.moved_from} 
     {}
 
     tracked(tracked&& other)
-        : m_state{construction_kind::move,other.m_state.copy_assigned,other.m_state.move_assigned} 
-    {}
+        : m_state{construction_kind::move,
+            other.m_state.copy_assigned,
+            other.m_state.move_assigned,
+            other.m_state.moved_from} 
+    {
+        other.m_state.moved_from++;
+    }
 
     tracked& operator=(tracked const& other) {
         m_state = other.m_state;
@@ -45,6 +53,7 @@ struct tracked {
 
     tracked& operator=(tracked&& other) {
         m_state = other.m_state;
+        other.m_state.moved_from++;
         m_state.move_assigned++;
         return *this;
     }
@@ -71,6 +80,10 @@ struct tracked {
 
     uint32_t move_assigned() const {
         return m_state.move_assigned;
+    }
+
+    uint32_t moved_from() const {
+        return m_state.moved_from;
     }
 };
 

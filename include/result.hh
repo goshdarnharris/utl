@@ -26,8 +26,7 @@ namespace detail {
 template <typename T>
 struct traits {
     static constexpr bool is_lvalue_ref = std::is_lvalue_reference_v<T>;
-    static constexpr bool is_rvalue_ref = std::is_rvalue_reference_v<T>;    
-    using return_t = std::remove_reference_t<T>;
+    static constexpr bool is_rvalue_ref = std::is_rvalue_reference_v<T>;
     static constexpr bool is_void = std::is_void_v<T>;
     using storage_t = std::conditional_t<is_void,    
         detail::void_value_t,
@@ -535,10 +534,6 @@ class [[nodiscard]] result {
 protected:
     using value_traits = traits<T>;
     using error_traits = traits<E>;
-    using value_storage_t = typename value_traits::storage_t;
-    using error_storage_t = typename error_traits::storage_t;
-    using value_return_t = typename value_traits::return_t;
-    using error_return_t = typename error_traits::return_t; 
     using value_observer_t = value_observer<T>; 
     using error_observer_t = error_observer<E>;
 
