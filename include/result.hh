@@ -603,33 +603,36 @@ public:
     constexpr bool is_error() const { return !has_value(); }
 
     constexpr auto& value() & {
-        // this doesn't seem to be available?
-        // if constexpr(!std::is_constant_evaluated()) {
-        //     if(!has_value()) printf("oh no");
-        // }
+        //fixme: if constant evaluated, do a constexpr check of has_value.
+        return value_observer_t::get(m_storage.m_value);
+    }
+
+    constexpr auto& value_or(value_t& dfault) & {
+        //fixme: if constant evaluated, do a constexpr check of has_value.
+        if(!has_value()) return dfault;
 
         return value_observer_t::get(m_storage.m_value);
     }
 
     constexpr auto& error() & { 
-        // if constexpr(!std::is_constant_evaluated()) {
-        //     if(has_value()) printf("oh no");
-        // }
+        //fixme: if constant evaluated, do a constexpr check of has_value.
         return error_observer_t::get(m_storage.m_error);
     }
 
     constexpr auto& value() const& { 
-        // if constexpr(!std::is_constant_evaluated()) {
-        //     if(!has_value()) printf("oh no");
-        // }
+        //fixme: if constant evaluated, do a constexpr check of has_value.
+        return value_observer_t::get(m_storage.m_value);
+    }
+
+    constexpr auto& value_or(value_t& dfault) const& {
+        //fixme: if constant evaluated, do a constexpr check of has_value.
+        if(!has_value()) return dfault;
+
         return value_observer_t::get(m_storage.m_value);
     }
 
     constexpr auto& error() const& { 
-        // if constexpr(!std::is_constant_evaluated()) {
-        //     if(has_value()) printf("oh no");
-        // }
-
+        //fixme: if constant evaluated, do a constexpr check of has_value.
         return error_observer_t::get(m_storage.m_error);
     }
 
@@ -644,6 +647,38 @@ public:
     //something _and_ extract the value if it's an rvalue.
     constexpr auto value() && -> const typename value_observer_t::return_t = delete;
     constexpr auto error() && -> const typename error_observer_t::return_t = delete;
+
+    template <typename F>
+    using visitor_invoke_result_t = std::invoke_result_t<F, value_t&>;
+    //Visitation is always legal since it is checked.
+    template <typename F>
+    auto visit(F visitor) -> visitor_invoke_result_t<F> {
+        if(has_value()) {
+            if constexpr (std::is_same_v<visitor_invoke_result_t<F>, void>) {
+                visitor(value());
+            } else {
+                return visitor(value());
+            }
+        }
+    }
+
+    template <typename F>
+    auto visit(const F visitor) const -> visitor_invoke_result_t<F> {
+        if(has_value()) {
+            if constexpr (std::is_same_v<visitor_invoke_result_t<F>, void>) {
+                visitor(value());
+            } else {
+                return visitor(value());
+            }
+        }
+    }
+
+    //I could extend this with try_t to do visitation conditioned on a collection of maybe-results.
+    //Free function that examines its argument list for try's, attempts to unwrap them, and calls
+    //the callable if everything is unwrappable.
+    //oooOOOOoooooo
+
+
 };
 
 //Finally, these functions are a convenience for cases where

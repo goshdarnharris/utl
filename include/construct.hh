@@ -8,6 +8,14 @@
 
 namespace utl {
 
+//what is this type, really?
+//it represents an operation that construct is to perform.
+//in part, it represents a future reference, copy, or move.
+//  so that should probably get split off.
+//in part, it represents an unboxing operation.
+// - check if there's a value
+// - unbox that value
+// - return that value with the correct type
 template <typename T>
 class try_t {
     static constexpr bool is_pointer = std::is_pointer_v<T>;
@@ -200,7 +208,13 @@ class construct : public detail::result_t<T> {
     constexpr construct(error_tag, Args&&... args)
         : detail::result_t<T>{in_place_t{}, error_tag{}, utl::system_error::UNKNOWN}
     { 
+        //FIXME: can probably refactor this as a collection of constexpr_if.
+        //FIXME: can probably discover the arguments of the constructor and compare
+        //   to decide whether or not to try to unbox a result. this would eliminate
+        //   the type_t tag.
         bool can_construct = (detail::is_value_or_unboxable<Args>(std::forward<Args>(args)) and ...);
+        //uh... constructability policy? what would that even do?
+        //would that be a step in decoupling try_t from construct completely?
         if(!can_construct) {
             return;
         }
@@ -221,8 +235,13 @@ public:
     constexpr construct(Args&&... args)
         : construct{detail::select_constructor_t<Args...>{}, std::forward<Args>(args)...}
     {
-        if(detail::result_t<T>::is_error()) return;
+        if(detail::result_t<T>::is_error()) return; //should invoke an error policy
 
+        //FIXME: validate-or-not should probably be a policy, and I should probably have
+        //  two separate default types representing validate and do-not-validate.
+        //Or... does it make more sense to decide based on the argument? If this type
+        //  enforces one or the other, then the construct type could be placing
+        //  extra invariants on the boxed type. Which would be bad.
         if constexpr(accessor_t::do_validation) {
             auto res = m_storage.m_value.validate();
             if(!res) {
