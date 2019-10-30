@@ -8,3 +8,4 @@ packages
 .DS_Store
 LOG_*
 *.pyc
+*.code-workspace
