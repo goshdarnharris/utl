@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string_view>
+#include <units.hh>
 
 #define UTL_UNUSED __attribute__((unused))
 
@@ -46,6 +47,7 @@ namespace literals {
 inline constexpr string_view operator ""_sv(const char* str, size_t len) { return{str,len}; }
 }
 
+using namespace unit;
 using namespace literals;
 
 using uintb1_t = uint8_t;
