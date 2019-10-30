@@ -30,7 +30,7 @@ public:
     void set_polarity(polarity pol) { m_polarity = pol; }  
 };
 
-template <class Pwm>
+template <class Pwm, class Dma>
 class dma_channel : public channel<Pwm> {
     using channel<Pwm>::m_source;
     using channel<Pwm>::m_id;
@@ -45,6 +45,7 @@ public:
     utl::result<void> start(uint32_t* data, uint32_t length) { return m_source.start_dma(m_id, m_polarity, data, length); }
     utl::result<void> stop() { return m_source.stop_dma(m_id); }
     constexpr uint32_t width_to_dma_value(time_t width) const { return m_source.width_to_dma_value(width); }  
+    void link_dma(Dma& dma) { m_source.link_dma(m_id, dma); }
 };
 
 } //namespace utl::driver::pwm::interface
