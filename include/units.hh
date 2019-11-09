@@ -1,6 +1,8 @@
 #ifndef UTL_UNITS_HH_
 #define UTL_UNITS_HH_
 
+#include <stdlib.h>
+
 namespace utl::detail::unit {
 
 constexpr int32_t ipow(int32_t base, int32_t exp, int32_t result = 1) {
@@ -57,6 +59,24 @@ struct metric {
         value = other.value * ipow(10, Magnitude_Other - Magnitude);
         overflow_policy_t::check(other.value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(other.value, Magnitude_Other, Magnitude);
+    }
+
+    metric& operator-=(metric const& other) {
+        value -= other.value;
+        return *this;
+    }
+
+    metric operator-(metric const& other) {
+        return metric{this->value - other.value};
+    }
+
+    metric& operator+=(metric const& other) {
+        value += other.value;
+        return *this;
+    }
+
+    metric operator+(metric const& other) {
+        return metric{this->value + other.value};
     }
 
     template <typename U>
@@ -129,21 +149,11 @@ namespace duration {
 struct seconds_t {};
 
 //default policies for now.
-struct picoseconds : public detail::unit::metric<seconds_t, -12, default_overflow_policy_t,default_truncate_policy_t> {
-    using detail::unit::metric<seconds_t, -12, default_overflow_policy_t,default_truncate_policy_t>::metric;
-};
-struct nanoseconds : public detail::unit::metric<seconds_t, -9, default_overflow_policy_t,default_truncate_policy_t> {
-    using detail::unit::metric<seconds_t, -9, default_overflow_policy_t,default_truncate_policy_t>::metric;
-};
-struct microseconds : public detail::unit::metric<seconds_t, -6, default_overflow_policy_t,default_truncate_policy_t> {
-    using detail::unit::metric<seconds_t, -6, default_overflow_policy_t,default_truncate_policy_t>::metric;
-};
-struct milliseconds : public detail::unit::metric<seconds_t, -3, default_overflow_policy_t,default_truncate_policy_t> {
-    using detail::unit::metric<seconds_t, -3, default_overflow_policy_t,default_truncate_policy_t>::metric;
-};
-struct seconds : public detail::unit::metric<seconds_t, 0, default_overflow_policy_t,default_truncate_policy_t> {
-    using detail::unit::metric<seconds_t, 0, default_overflow_policy_t,default_truncate_policy_t>::metric;
-};
+using picoseconds = detail::unit::metric<seconds_t, -12, default_overflow_policy_t, default_truncate_policy_t>;
+using nanoseconds = detail::unit::metric<seconds_t, -9, default_overflow_policy_t, default_truncate_policy_t>;
+using microseconds = detail::unit::metric<seconds_t, -6, default_overflow_policy_t, default_truncate_policy_t>;
+using milliseconds = detail::unit::metric<seconds_t, -3, default_overflow_policy_t, default_truncate_policy_t>;
+using seconds = detail::unit::metric<seconds_t, 0, default_overflow_policy_t, default_truncate_policy_t>;
 
 using ps = picoseconds;
 using ns = nanoseconds;
@@ -152,6 +162,25 @@ using ms = milliseconds;
 using s = seconds;
 
 }
+
+namespace frequency {
+
+struct hertz_t {};
+
+using millihertz = detail::unit::metric<hertz_t, -3, default_overflow_policy_t, default_truncate_policy_t>;
+using hertz = detail::unit::metric<hertz_t, 0, default_overflow_policy_t, default_truncate_policy_t>;
+using kilohertz = detail::unit::metric<hertz_t, 3, default_overflow_policy_t, default_truncate_policy_t>;
+using megahertz = detail::unit::metric<hertz_t, 6, default_overflow_policy_t, default_truncate_policy_t>;
+using gigahertz = detail::unit::metric<hertz_t, 9, default_overflow_policy_t, default_truncate_policy_t>;
+
+using mHz = millihertz;
+using Hz = hertz;
+using KHz = kilohertz;
+using MHz = megahertz;
+using GHz = gigahertz;
+
+}
+namespace freq = frequency;
 
 } //namespace utl::unit
 
@@ -163,6 +192,12 @@ constexpr unit::duration::nanoseconds operator ""_ns(unsigned long long value) {
 constexpr unit::duration::microseconds operator ""_us(unsigned long long value) { return unit::duration::microseconds{static_cast<uint32_t>(value)}; }
 constexpr unit::duration::milliseconds operator ""_ms(unsigned long long value) { return unit::duration::milliseconds{static_cast<uint32_t>(value)}; }
 constexpr unit::duration::seconds operator ""_s(unsigned long long value) { return unit::duration::seconds{static_cast<uint32_t>(value)}; }
+
+constexpr unit::frequency::millihertz operator ""_mHz(unsigned long long value) { return unit::frequency::millihertz{static_cast<uint32_t>(value)}; }
+constexpr unit::frequency::hertz operator ""_Hz(unsigned long long value) { return unit::frequency::hertz{static_cast<uint32_t>(value)}; }
+constexpr unit::frequency::kilohertz operator ""_KHz(unsigned long long value) { return unit::frequency::kilohertz{static_cast<uint32_t>(value)}; }
+constexpr unit::frequency::megahertz operator ""_MHz(unsigned long long value) { return unit::frequency::megahertz{static_cast<uint32_t>(value)}; }
+constexpr unit::frequency::gigahertz operator ""_GHz(unsigned long long value) { return unit::frequency::gigahertz{static_cast<uint32_t>(value)}; }
 
 } //namespace literals
 
