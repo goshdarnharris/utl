@@ -2,9 +2,9 @@
 #ifndef UTL_INTERFACE_DRIVER_PIN_OUTPUT_HH_
 #define UTL_INTERFACE_DRIVER_PIN_OUTPUT_HH_
 
-#include "interface/driver/pin/base.hh"
+#include "utl/interface/hal/pin/base.hh"
 
-namespace utl::driver::pin::interface {
+namespace utl::hal::pin::interface {
 
 class output : public virtual base {
 public:
@@ -13,5 +13,5 @@ public:
     virtual void set_state(bool active) = 0;
 };
 
-} // namespace utl::driver::pin::interface
+} // utl::hal::pin::interface
 #endif // UTL_INTERFACE_DRIVER_PIN_OUTPUT_HH_

@@ -2,9 +2,9 @@
 #ifndef UTL_INTERFACE_DRIVER_PIN_BASE_HH_
 #define UTL_INTERFACE_DRIVER_PIN_BASE_HH_
 
-#include "interface/driver/driver.hh"
+#include "utl/interface/hal/driver.hh"
 
-namespace utl::driver::pin {
+namespace utl::hal::pin {
 
 enum class direction {
     input,
@@ -18,7 +18,7 @@ enum class active_level {
 
 namespace interface {
 
-class base : public virtual utl::driver::interface::driver {
+class base : public virtual utl::interface::hal::driver {
 public:
     virtual ~base(void) = default;
     virtual bool get_state(void) const = 0;
@@ -28,5 +28,5 @@ public:
 };
 
 } // namespace interface
-} // namespace utl::driver::pin
+} // utl::hal::pin
 #endif // UTL_INTERFACE_DRIVER_PIN_BASE_HH_

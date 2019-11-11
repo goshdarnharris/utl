@@ -1,7 +1,7 @@
 #ifndef UTL_INTERFACE_DRIVER_HH_
 #define UTL_INTERFACE_DRIVER_HH_
 
-namespace utl::driver::interface {
+namespace utl::interface::hal {
 
 class driver {
 public:

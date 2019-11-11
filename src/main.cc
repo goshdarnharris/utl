@@ -1,6 +1,6 @@
 /* vim: set tabstop=4 shiftwidth=4 expandtab filetype=cpp : */
-#include "utl.hh"
-#include "logger.hh"
+#include "utl/utl.hh"
+#include "utl/logger.hh"
 #include <stdio.h>
 #include <CppUTest/CommandLineTestRunner.h>
 

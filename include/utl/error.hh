@@ -1,7 +1,7 @@
 #ifndef UTL_ERROR_HH_
 #define UTL_ERROR_HH_
 
-#include "utl.hh"
+#include "utl/utl.hh"
 #include <utility>
 #include <string_view>
 #include <stdint.h>
@@ -18,12 +18,17 @@ struct is_error_code_enum : std::false_type {};
 
 using namespace std::literals;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnon-virtual-dtor"
+
 struct error_category {
     constexpr error_category() {}    
     virtual const utl::string_view message(int32_t value) const;
     virtual const utl::string_view name() const;
-    virtual ~error_category() = default;
+    ~error_category() = default;
 };
+
+#pragma clang diagnostic pop
 
 class error_code {
     int32_t value;

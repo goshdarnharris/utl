@@ -1,8 +1,8 @@
 #ifndef UTL_CONSTRUCT_HH_
 #define UTL_CONSTRUCT_HH_
 
-#include "result.hh"
-#include "system-error.hh"
+#include "utl/result.hh"
+#include "utl/system-error.hh"
 #include <experimental/type_traits>
 #include <stdio.h>
 
@@ -229,7 +229,19 @@ public:
 
     constexpr construct()
         : detail::result_t<T>{in_place_t{}, value_tag{}}
-    {}
+    {
+        //FIXME: validate-or-not should probably be a policy, and I should probably have
+        //  two separate default types representing validate and do-not-validate.
+        //Or... does it make more sense to decide based on the argument? If this type
+        //  enforces one or the other, then the construct type could be placing
+        //  extra invariants on the boxed type. Which would be bad.
+        if constexpr(accessor_t::do_validation) {
+            auto res = m_storage.m_value.validate();
+            if(!res) {
+                m_storage.emplace(error_tag{}, res.error());
+            }
+        }
+    }
 
     template <typename... Args>
     constexpr construct(Args&&... args)

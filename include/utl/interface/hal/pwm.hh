@@ -1,10 +1,10 @@
 #ifndef UTL_INTERFACE_DRIVER_PWM_HH_
 #define UTL_INTERFACE_DRIVER_PWM_HH_
 
-#include "interface/driver/driver.hh"
-#include "result.hh"
+#include "utl/interface/hal/driver.hh"
+#include "utl/result.hh"
 
-namespace utl::driver::pwm::interface {
+namespace utl::hal::pwm::interface {
 
 enum class polarity {
     ACTIVE_LOW,
@@ -48,6 +48,6 @@ public:
     void link_dma(Dma& dma) { m_source.link_dma(m_id, dma); }
 };
 
-} //namespace utl::driver::pwm::interface
+} //utl::hal::pwm::interface
 
 #endif //UTL_INTERFACE_DRIVER_PWM_HH_

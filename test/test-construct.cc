@@ -1,11 +1,11 @@
 /* vim: set tabstop=4 shiftwidth=4 expandtab filetype=cpp : */
 
-#include "construct.hh"
+#include "utl/construct.hh"
 #include <CppUTest/TestHarness.h>
 #include "packages/libawful/include/awful.hpp"
 #include "test-types.hh"
-#include "utl.hh"
-#include "system-error.hh"
+#include "utl/utl.hh"
+#include "utl/system-error.hh"
 
 TEST_GROUP(Construct) {
 

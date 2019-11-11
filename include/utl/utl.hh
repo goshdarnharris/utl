@@ -83,6 +83,9 @@ struct imprecise {
     }
 };
 
+template <typename T>
+imprecise(T a, T b) -> imprecise<T>;
+
 }
 
 using namespace MOVE;
@@ -92,7 +95,7 @@ using namespace MOVE;
 
 
 #include "utl-platform.hh"
-#include "error.hh"
+#include "utl/error.hh"
 #include "units.hh"
 
 namespace utl {

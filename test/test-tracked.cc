@@ -3,7 +3,7 @@
 #include <CppUTest/TestHarness.h>
 #include <utility>
 #include "test-types.hh"
-#include "utl.hh"
+#include "utl/utl.hh"
 
 TEST_GROUP(Tracked) {
 
