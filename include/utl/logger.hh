@@ -26,6 +26,10 @@ detail::output_base const * get_global_output();
 
 struct push_output {
     push_output(detail::output_base const* output);
+    template <typename T, std::enable_if_t<utl::is_result_v<std::remove_reference_t<T>>, int*> = nullptr>
+    push_output(T&& maybe_output) 
+        : push_output{utl::unwrap_pointer(maybe_output)}
+    {}
     ~push_output();
 private:
     detail::output_base const * m_previous_output;

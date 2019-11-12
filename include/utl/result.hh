@@ -527,15 +527,15 @@ struct default_observer_policy<void> {
 
 //Finally we have the result type.
 template <typename T, typename E = error_code, 
-    template<class> typename value_observer = default_observer_policy,
-    template<class> typename error_observer = default_observer_policy
+    template<class> typename ValueObserver = default_observer_policy,
+    template<class> typename ErrorObserver = default_observer_policy
 >
 class [[nodiscard]] result {
 protected:
     using value_traits = traits<T>;
     using error_traits = traits<E>;
-    using value_observer_t = value_observer<T>; 
-    using error_observer_t = error_observer<E>;
+    using value_observer_t = ValueObserver<T>; 
+    using error_observer_t = ErrorObserver<E>;
 
     using storage_predicate = storage_predicate<T, E>;
 
@@ -681,6 +681,17 @@ public:
 
 };
 
+
+template <typename T>
+struct is_result : std::false_type {};
+
+template <typename T, typename E, template<class> typename... Policies>
+struct is_result<result<T,E,Policies...>> : std::true_type {};
+
+template <typename T>
+static constexpr bool is_result_v = is_result<T>::value;
+
+
 //Finally, these functions are a convenience for cases where
 //result<T,E>'s converting constructors from T & E are disabled.
 //Instead of forcing the user to say 
@@ -702,20 +713,25 @@ static constexpr auto success() -> result<void,E> {
     return {value_tag{}};
 }
 
-template <typename T, typename E>
-static constexpr void ignore_result(result<T,E> res) {
+//TODO: need a way to disable use of this on an arbitrary result type.
+template <typename T, std::enable_if_t<is_result_v<std::remove_reference_t<T>>, int*> = nullptr>
+static constexpr void ignore_result(T&& res) {
     utl::maybe_unused(res);
 }
 
+template <typename T, std::enable_if_t<is_result_v<std::remove_reference_t<T>>, int*> = nullptr>
+static constexpr auto unwrap_pointer(T&& res) -> std::remove_reference_t<decltype(res.value())>* {
+    return res ? &res.value() : nullptr;
+}
 
-template <typename T>
-struct is_result : std::false_type {};
 
-template <typename T, typename E>
-struct is_result<result<T,E>> : std::true_type {};
 
-template <typename T>
-static constexpr bool is_result_v = is_result<T>::value;
+
+
+
+
+
+
 //TODO: implement some compile-time tests here with static asserts.
 
 } //namespace utl
