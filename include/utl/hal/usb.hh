@@ -17,6 +17,10 @@ namespace hid {
 
 struct keycode {
     uint8_t data;
+
+    constexpr bool operator==(keycode const& other) {
+        return data == other.data;
+    }
 };
 
 struct keyboard_report {
@@ -39,10 +43,38 @@ struct keyboard_report {
     };
 
     keyboard_report() = default;
-    constexpr keyboard_report(keycode code) : 
+
+    template <typename... Codes>
+    constexpr keyboard_report(Codes... codes) : 
         modifiers{0x0}, _reserved{0x0}, 
-        keycodes{code,0x0,0x0,0x0,0x0,0x0}
+        keycodes{codes...}
     {}
+};
+
+struct keycode_buffer {
+    static constexpr size_t max_codes = 6;
+    keycode codes[max_codes];
+
+    bool add(keycode code) {
+        for(uint8_t i=0; i<max_codes; i++) {
+            if(codes[i] == keycode{0x00}) {
+                codes[i] = code;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void remove(keycode code) {
+        for(uint8_t i=0; i<max_codes; i++) {
+            if(codes[i] == code) codes[i] = keycode{0x00};
+        }
+    }
+
+    keyboard_report report() const {
+        return keyboard_report{codes[0], codes[1], codes[2],
+            codes[3], codes[4], codes[5]};
+    }
 };
 
 } //namespace hid
