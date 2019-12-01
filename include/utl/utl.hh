@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <utility>
 
+#include <utl/type-list.hh>
+
 #define UTL_UNUSED __attribute__((unused))
 
 #ifndef UTL_BUILD_NOCXX

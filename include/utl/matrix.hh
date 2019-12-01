@@ -49,18 +49,33 @@ iterator(T,typename T::index_t) -> iterator<T>;
 
 } //namespace detail
 
+
+struct matrix_index_t : utl::array<size_t,2> {
+    size_t& col;
+    size_t& row;
+
+    constexpr matrix_index_t(size_t c, size_t r)
+      : utl::array<size_t,2>{{c,r}}, 
+        col{this->data()[0]}, row{this->data()[1]}
+    {}
+
+    constexpr bool operator==(matrix_index_t const& other) const {
+        return other.col == col and other.row == row;
+    }
+};
+
 template <typename T, size_t W, size_t H>
 struct matrix {
     using value_t = T;
-    using index_t = utl::array<size_t,2>;
+    using index_t = matrix_index_t;
 
     T _storage[W][H];
 
-    constexpr T& operator[](index_t idx) {
+    constexpr T& operator[](const index_t idx) {
         return _storage[idx[0]][idx[1]];
     }
 
-    constexpr T const& operator[](index_t idx) const {
+    constexpr T const& operator[](const index_t idx) const {
         return _storage[idx[0]][idx[1]];
     }
 

@@ -19,7 +19,7 @@ namespace scancode {
 
 struct code {
     uint8_t data = 0;
-    bool modifier = false;
+    bool modifier:1 = false;
 
     constexpr bool operator==(code const& other) {
         return modifier == other.modifier and data == other.data;
@@ -220,7 +220,7 @@ struct keyboard_report {
                 };
             } modifiers;
             uint8_t _reserved;
-            scancode::code codes[6];
+            uint8_t codes[n_codes];
         };
         uint8_t data[n_codes + 2];
     };
@@ -231,11 +231,11 @@ struct keyboard_report {
         codes{0,0,0,0,0,0}
     {}
 
-    template <typename... Codes>
-    constexpr keyboard_report(Codes... codes) : 
-        modifiers{0x0}, _reserved{0x0}, 
-        codes{codes...}
-    {}
+    // template <typename... Codes>
+    // constexpr keyboard_report(Codes... codes) : 
+    //     modifiers{0x0}, _reserved{0x0}, 
+    //     codes{codes.data...}
+    // {}
 
     bool add(scancode::code code) {
         if(code == scancode::none) return true;
@@ -244,8 +244,8 @@ struct keyboard_report {
             return true;
         }
         for(uint8_t i=0; i<n_codes; i++) {
-            if(codes[i] == scancode::none) {
-                codes[i] = code;
+            if(codes[i] == scancode::none.data) {
+                codes[i] = code.data;
                 return true;
             }
         }
@@ -258,7 +258,7 @@ struct keyboard_report {
             return;
         }
         for(uint8_t i=0; i<n_codes; i++) {
-            if(codes[i] == code) codes[i] = scancode::none;
+            if(codes[i] == code.data) codes[i] = scancode::none.data;
         }
     }
 };

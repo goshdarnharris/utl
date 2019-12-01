@@ -5,13 +5,13 @@
 
 namespace utl {
 
-    template<bool, typename T = void>
+    template <bool, typename T = void>
     struct enable_if {};
 
-    template<typename T>
+    template <typename T>
     struct enable_if<true, T> { using type = T; };
 
-    template<bool B, typename T>
+    template <bool B, typename T>
     using enable_if_t = typename enable_if<B,T>::type;
 
     struct true_type { static constexpr bool value = true; };
@@ -27,46 +27,49 @@ namespace utl {
         using value_type = T;
     };
 
-    template<typename T1, typename T2>
+    template <typename T1, typename T2>
     struct is_same : false_type {};
 
-    template<typename T>
+    template <typename T>
     struct is_same<T,T> : true_type {};
 
-    template<bool B, typename T, typename F>
+    template <typename T1, typename T2>
+    static constexpr bool is_same_v = is_same<T1,T2>::value;
+
+    template <bool B, typename T, typename F>
     struct conditional { using type = T; };
 
-    template<typename T, typename F>
+    template <typename T, typename F>
     struct conditional<false,T,F> { using type = F; };
 
-    template<bool B, typename T, typename F>
+    template <bool B, typename T, typename F>
     using conditional_t = typename conditional<B,T,F>::type;
 
-    template<typename T>
+    template <typename T>
     struct is_const : false_type {};
 
-    template<typename T>
+    template <typename T>
     struct is_const<const T> : true_type {};
 
-    template<typename T>
+    template <typename T>
     struct is_const<const T&> : true_type {};
 
-    template<typename T>
+    template <typename T>
     struct is_enum {
         static constexpr bool value = __is_enum(T);
     };
 
-    template<class T, bool = is_enum<T>::value> struct _Underlying_type {};
-    template<class T> struct _Underlying_type<T, true> { using type = __underlying_type(T); };
-    template<class T> struct underlying_type : _Underlying_type<T> { };
+    template <class T, bool = is_enum<T>::value> struct _Underlying_type {};
+    template <class T> struct _Underlying_type<T, true> { using type = __underlying_type(T); };
+    template <class T> struct underlying_type : _Underlying_type<T> { };
 
-    template<typename T>
+    template <typename T>
     struct remove_reference { using type = T; };
 
-    template<typename T>
+    template <typename T>
     struct remove_reference<T&> { using type = T; };
 
-    template<typename T>
+    template <typename T>
     struct remove_reference<T&&> { using type = T; };
 
     template <typename T, typename... Ts>

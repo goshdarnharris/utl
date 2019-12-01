@@ -3,7 +3,7 @@
 #include "utl/construct.hh"
 #include <CppUTest/TestHarness.h>
 #include "packages/libawful/include/awful.hpp"
-#include "test-types.hh"
+#include "utl/test-types.hh"
 #include "utl/utl.hh"
 #include "utl/system-error.hh"
 

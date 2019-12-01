@@ -42,6 +42,7 @@ def configure(context):
     context.builder.append_cflag("-fno-rtti")
     context.builder.append_cflag("-fno-exceptions")
     context.builder.append_cflag("-fno-threadsafe-statics")
+    context.builder.append_cflag("-fcoroutines-ts")
     if context.defined(MODE="release"):
         luminaire.toolchain.OPTIMIZED(context.builder,optimize='s')
         luminaire.toolchain.STRIP(context.builder)

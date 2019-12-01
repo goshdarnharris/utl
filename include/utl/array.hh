@@ -2,6 +2,7 @@
 #define UTL_ARRAY_HH_
 
 #include "utl/utl.hh"
+#include <initializer_list>
 
 namespace utl {
 
