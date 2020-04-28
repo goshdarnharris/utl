@@ -58,6 +58,7 @@ struct output : detail::output_base {
 //TODO: automatically convert error_codes to their strings.
 template <typename... Args>
 void log(utl::string_view const& format, Args&&... args) {
+    if(format.size() == 0 or format.size() == string_view::npos) return;
     static_assert(utl::platform::config::use_float || 
         (!contains_v<type_list<Args...>,float> && !contains_v<type_list<Args...>,double>),
         "floating point printing is disabled!");
@@ -76,6 +77,8 @@ void log(utl::string_view const& format, Args&&... args) {
     ignore_result(res);
     ignore_result(logger::detail::get_global_output()->write("\r\n"_sv));
 }
+
+void log(utl::string_view const& str);
 
 template <typename... Args>
 void log(const char * format, Args&&... args) {

@@ -8,7 +8,10 @@ extern "C" int main(int argc, char* argv[]);
 
 struct printf_logger {
     utl::result<void> write(utl::string_view const& s) const {
-        printf("%s\n",s.data());
+        auto substr = static_cast<char*>(alloca(s.size() + 1));
+        strncpy(substr, s.data(), s.size());
+        substr[s.size()] = '\0';
+        printf("%s",substr);
         return utl::success();
     }
 };

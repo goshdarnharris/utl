@@ -12,7 +12,7 @@ enum class system_error {
 
 //Is there any better way to do this? I don't like introducing
 //a namespace in this way.
-using namespace std::literals;
+using namespace utl::literals;
 
 template <>
 struct is_error_code_enum<system_error> : std::true_type {};

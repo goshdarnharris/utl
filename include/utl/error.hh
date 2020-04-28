@@ -3,7 +3,7 @@
 
 #include "utl/utl.hh"
 #include <utility>
-#include <string_view>
+#include <utl/string-view.hh>
 #include <stdint.h>
 
 namespace utl {
@@ -16,7 +16,7 @@ constexpr error_code make_error_code(T code);
 template <typename T>
 struct is_error_code_enum : std::false_type {};
 
-using namespace std::literals;
+using namespace utl::literals;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnon-virtual-dtor"
