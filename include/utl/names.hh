@@ -99,21 +99,25 @@ template <typename E>
 static constexpr size_t enum_count = detail::enums::get_enum_count<E>();
 
 template <auto E>
+
 static constexpr string_view enum_name = detail::enums::get_enum_name<E>();
 
-template <typename T, size_t Cursor = 0>
-constexpr string_view get_enum_name(T&& v)
+template <typename E, size_t Cursor = 0>
+    requires is_enum_v<remove_reference_t<E>>
+constexpr string_view get_enum_name(E&& v)
 {
-    using enum_t = std::remove_reference_t<T>;
+    using enum_t = std::remove_reference_t<E>;
     if constexpr (Cursor == enum_count<enum_t>) {
         return "";
     } else {
         if(static_cast<size_t>(v) == Cursor) {
             return enum_name<static_cast<enum_t>(Cursor)>;
         } else {
-            return get_enum_name<T,Cursor+1>(std::forward<T>(v));
+            return get_enum_name<E,Cursor+1>(std::forward<E>(v));
         }
     }
 }
+
+
 
 } //namespace utl

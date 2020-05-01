@@ -1,7 +1,9 @@
 #ifndef UTL_STRING_HH_
 #define UTL_STRING_HH_
 
+#include <utl/type-list.hh>
 #include <string.h>
+#include <utility>
 
 namespace utl {
 
@@ -15,9 +17,9 @@ public:
     constexpr string(const char_t (&str)[N+1]) : string(literal_string_tag{},str,make_index_sequence<N+1>{}) 
     {}
 
-    template <size_t... Indexes>
-    constexpr string(literal_string_tag, const char_t (&str)[N+1], index_sequence<Indexes...>) 
-      : m_elements{str[Indexes]...} {}
+    template <size_t... Indices>
+    constexpr string(literal_string_tag, const char_t (&str)[N+1], index_sequence<Indices...>) 
+      : m_elements{str[Indices]...} {}
 
     template <typename... Args>
     string(const char_t (&fmt)[N+1], Args&&... args) {

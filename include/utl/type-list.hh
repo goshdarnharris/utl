@@ -2,6 +2,7 @@
 #ifndef UTL_TYPE_LIST_HH_
 #define UTL_TYPE_LIST_HH_
 
+#include <stdlib.h>
 #include <utl/traits.hh>
 
 namespace utl {

@@ -59,9 +59,15 @@ namespace utl {
         static constexpr bool value = __is_enum(T);
     };
 
-    template <class T, bool = is_enum<T>::value> struct _Underlying_type {};
-    template <class T> struct _Underlying_type<T, true> { using type = __underlying_type(T); };
-    template <class T> struct underlying_type : _Underlying_type<T> { };
+    template <typename T>
+    static constexpr bool is_enum_v = is_enum<T>::value;
+    
+    template <typename T>
+        requires is_enum_v<T>
+    struct underlying_type { using type = __underlying_type(T); };
+
+    template <typename T>
+    using underlying_type_t = typename underlying_type<T>::type;
 
     template <typename T>
     struct remove_reference { using type = T; };
@@ -71,6 +77,9 @@ namespace utl {
 
     template <typename T>
     struct remove_reference<T&&> { using type = T; };
+
+    template <typename T>
+    using remove_reference_t = typename remove_reference<T>::type;
 
     template <typename T, typename... Ts>
     struct index_of;

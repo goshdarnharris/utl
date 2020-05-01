@@ -43,6 +43,7 @@ def configure(context):
     context.builder.append_cflag("-fno-exceptions")
     context.builder.append_cflag("-fno-threadsafe-statics")
     context.builder.append_cflag("-fcoroutines-ts")
+    # context.builder.append_cflag("-ftime-trace")
     if context.defined(MODE="release"):
         luminaire.toolchain.OPTIMIZED(context.builder,optimize='s')
         luminaire.toolchain.STRIP(context.builder)

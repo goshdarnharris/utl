@@ -1,10 +1,12 @@
 #pragma once
 
+#include <utl/type-list.hh>
 #include <utl/string.hh>
 
 namespace utl {
 
 struct string_view {
+public:
     static constexpr size_t npos = static_cast<size_t>(-1);
     const char* str;
     const size_t length;
@@ -34,8 +36,9 @@ struct string_view {
     constexpr bool starts_with(string_view v) const
     {
         if(v.size() > size()) { return false; }
-        if(size() == 0) { return true; }
-        if constexpr (std::is_constant_evaluated()) {
+        if(size() == 0 && v.size() == 0) { return true; }
+        if(size() == 0) { return false; }
+        if (std::is_constant_evaluated()) {
             if(str[0] == v.data()[0]) {
                 if(v.size() == 1) { return true; }
                 return substr(1,npos).starts_with(v.substr(1, npos));
@@ -62,12 +65,12 @@ struct string_view {
             return false;
         };
 
-        if constexpr (std::is_constant_evaluated()) {
+        if (std::is_constant_evaluated()) {
             if(check(pos)) { return pos; }
             return find(v, pos + 1);
         } else {
-            for(size_t idx = pos; idx < search_end_pos; idx++) {
-                if(check(pos)) { return pos; }
+            for(size_t idx = pos; idx <= search_end_pos; idx++) {
+                if(check(idx)) { return idx; }
             }
             return npos;
         }
@@ -84,15 +87,15 @@ struct string_view {
             return false;
         };
 
-        if constexpr (std::is_constant_evaluated()) {
+        if (std::is_constant_evaluated()) {
             if(check(pos)) { return pos; }
             if(pos == 0) { return npos; }
             return find(v, pos - 1);
         } else {
-            for(size_t idx = pos; idx > 0; idx--) {
+            for(size_t idx = pos; idx >= 0; idx--) {
                 if(check(pos)) { return pos; }
-                if(pos == 0) { return npos;}
             }
+            return npos;
         }
     }
     constexpr bool compare(string_view v) const
