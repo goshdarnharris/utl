@@ -554,47 +554,65 @@ public:
     //and you want to indicate success/failure in a way that's consistent
     //with other functions. We allow this because we do not allow E to be
     //void.
-    template <typename U = T, std::enable_if_t<traits<U>::is_void, int*> = nullptr>
-    result() : m_storage{value_tag{}, detail::void_value_t{}} {}
+    // template <typename U = T, std::enable_if_t<traits<U>::is_void, int*> = nullptr>
+    constexpr result() 
+        requires traits<T>::is_void 
+      : m_storage{value_tag{}, detail::void_value_t{}} 
+    {}
 
-    template <typename U = T, std::enable_if_t<traits<U>::is_void, int*> = nullptr>
-    constexpr result(value_tag) : m_storage{value_tag{}, detail::void_value_t{}}
+    // template <typename U = T, std::enable_if_t<traits<U>::is_void, int*> = nullptr>
+    constexpr result(value_tag) 
+        requires traits<T>::is_void
+      : m_storage{value_tag{}, detail::void_value_t{}}
     {}
     
-    template <typename U = T, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
-    constexpr result(value_tag, U&& value) : m_storage{value_tag{}, std::forward<U>(value)}
+    // template <typename U = T, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
+    template <typename U>
+    constexpr result(value_tag, U&& value) 
+        requires (!traits<T>::is_void) and std::is_convertible_v<U,T>
+      : m_storage{value_tag{}, std::forward<U>(value)}
     {}
 
-    template <typename U = T, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
+    // template <typename U = T, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
     constexpr result(in_place_t, value_tag)
-        : m_storage{in_place_t{}, value_tag{}} {}
+        requires (!traits<T>::is_void)
+      : m_storage{in_place_t{}, value_tag{}} 
+    {}
     
     template <typename... Args>
     constexpr result(in_place_t, value_tag, Args&&... args) 
-        : m_storage{in_place_t{}, value_tag{}, std::forward<Args>(args)...} {}
+      : m_storage{in_place_t{}, value_tag{}, std::forward<Args>(args)...} {}
 
     template <typename U>
-    constexpr result(error_tag, U&& error) : m_storage{error_tag{}, std::forward<U>(error)}
+    constexpr result(error_tag, U&& error)
+        requires std::is_convertible_v<U,T>
+      : m_storage{error_tag{}, std::forward<U>(error)}
     {}
 
     constexpr result(in_place_t, error_tag)
-        : m_storage{in_place_t{}, error_tag{}} {}    
+      : m_storage{in_place_t{}, error_tag{}}
+    {}    
 
     template <typename... Args>
     constexpr result(in_place_t, error_tag, Args&&... args) 
-        : m_storage{in_place_t{}, error_tag{}, std::forward<Args>(args)...} {}
+      : m_storage{in_place_t{}, error_tag{}, std::forward<Args>(args)...}
+    {}
 
     //We only want to enable this and the next constructor if T and E cannot be
     //converted between each other (that is, if it is valid to say T foo{E} or E foo{T},
     //we want to disable these constructors). If we don't, then saying result<T,E>{T}
     //will be ambiguous - you could end up with a result that's holding a T, or a result
     //that's holding an E. Instead of allowing that ambiguity, we make it illegal.
-    template <typename U, std::enable_if_t<storage_predicate::enable_implicit_construction and std::is_convertible_v<U,T>, int*> = nullptr>
-    constexpr result(U&& value) : m_storage{value_tag{}, std::forward<U>(value)} 
+    template <typename U>
+    constexpr result(U&& value) 
+        requires storage_predicate::enable_implicit_construction and std::is_convertible_v<U,T>
+      : m_storage{value_tag{}, std::forward<U>(value)} 
     {}
 
-    template <typename U, std::enable_if_t<storage_predicate::enable_implicit_construction and std::is_convertible_v<U,E>, int*> = nullptr>
-    constexpr result(U&& error) : m_storage{error_tag{}, std::forward<U>(error)}
+    template <typename U>
+    constexpr result(U&& error) 
+        requires storage_predicate::enable_implicit_construction and std::is_convertible_v<U,E>
+      : m_storage{error_tag{}, std::forward<U>(error)}
     {}
 
     constexpr explicit operator bool() const { return has_value(); }
@@ -650,7 +668,7 @@ public:
 
     template <typename F>
     using visitor_invoke_result_t = std::invoke_result_t<F, value_t&>;
-    //Visitation is always legal since it is checked.
+    
     template <typename F>
     auto visit(F visitor) -> visitor_invoke_result_t<F> {
         if(has_value()) {
