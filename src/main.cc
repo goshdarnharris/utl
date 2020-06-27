@@ -7,10 +7,10 @@
 extern "C" int main(int argc, char* argv[]);
 
 struct printf_logger {
-    utl::result<void> write(utl::string_view const& s) const {
-        auto substr = static_cast<char*>(alloca(s.size() + 1));
+    static utl::result<void> write(utl::string_view const& s) {
+        auto* substr = new char[s.size()+1];
         strncpy(substr, s.data(), s.size());
-        substr[s.size()] = '\0';
+        substr[s.size()] = '\0'; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         printf("%s",substr);
         return utl::success();
     }

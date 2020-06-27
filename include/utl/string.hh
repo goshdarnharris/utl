@@ -3,31 +3,169 @@
 
 #include <utl/type-list.hh>
 #include <string.h>
+#include <utl/string-view.hh>
 #include <utility>
 
 namespace utl {
 
 template <size_t N, typename char_t = char>
 class string {
-    struct literal_string_tag {};
-    char_t m_elements[N+1];
-public:
-    constexpr string() : m_elements{'\0'} {}
-    
-    constexpr string(const char_t (&str)[N+1]) : string(literal_string_tag{},str,make_index_sequence<N+1>{}) 
-    {}
-
-    template <size_t... Indices>
-    constexpr string(literal_string_tag, const char_t (&str)[N+1], index_sequence<Indices...>) 
-      : m_elements{str[Indices]...} {}
-
-    template <typename... Args>
-    string(const char_t (&fmt)[N+1], Args&&... args) {
-        snprintf(m_elements, N+1, fmt, std::forward<Args>(args)...);
-        m_elements[N+1] = '\0';
+    [[nodiscard]] constexpr char access(size_t index) const
+    {
+        return m_elements[index]; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
 
-    constexpr size_t size() { return N; }
+    struct impl_tag{};
+
+    constexpr string(impl_tag, const char* str, size_t length = N)
+    {
+        __builtin_memcpy(m_elements, str, length <= N ? length : N);
+        m_elements[N] = '\0';
+    }    
+
+    char_t m_elements[N+1] = {0}; //NOLINT(cppcoreguidelines-avoid-c-arrays)
+
+public:
+    constexpr string() : string{impl_tag{},"",0}
+    {}
+    
+    constexpr string(const char* str) : string{impl_tag{},str,__builtin_strlen(str)}
+    {}
+    
+    template <size_t M>
+        requires (M >= N)
+    constexpr string(string<M>& other) : string{impl_tag{},other.data(),N} 
+    {}
+
+    [[nodiscard]] constexpr const char* data() const
+    {
+        return m_elements;
+    }
+
+    [[nodiscard]] constexpr const char* c_str() const
+    {
+        return data();
+    }
+
+    [[nodiscard]] constexpr size_t length() const
+    { return __builtin_strlen(m_elements); }
+
+    [[nodiscard]] constexpr size_t size() const
+    { return N; }
+
+    constexpr char_t& operator[](size_t idx)
+    {
+        return m_elements[idx];
+    }
+
+    constexpr char_t const& operator[](size_t idx) const
+    {
+        return m_elements[idx];
+    }
+
+    constexpr operator string_view() const
+    {
+        return string_view{c_str(),length()};
+    }
+
+    const char_t* begin() {
+        return &m_elements[0];
+    }
+    const char_t* begin() const
+    {
+        return &m_elements[0];
+    }
+
+    const char_t* end()
+    {
+        return &m_elements[N];
+    }    
+    const char_t* end() const
+    {
+        return &m_elements[N];
+    }
+
+    [[nodiscard]] constexpr string<N> substr(size_t pos, size_t count) const
+    {
+        if(size() == 0) return {""};
+        if(pos >= size()) pos = size() - 1;
+        if(count == npos) count = size() - pos;
+        if(pos + count >= size()) count = size() - pos; 
+        return {impl_tag{}, &m_elements[pos], count}; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    }
+
+    [[nodiscard]] constexpr bool starts_with(string_view v) const
+    {
+        if(v.size() > size()) { return false; }
+        if(size() == 0 && v.size() == 0) { return true; }
+        if(size() == 0) { return false; }
+        if (std::is_constant_evaluated()) {
+            if(access(0) == v[0]) {
+                if(v.size() == 1) { return true; }
+                return substr(1,npos).starts_with(v.substr(1, npos));
+            } else {
+                return false;
+            }
+        } else {
+            for(size_t idx = 0; idx < v.size(); idx++) {
+                if(access(idx) != v[idx]) return false;
+            }
+            return true;
+        }
+    }
+
+    [[nodiscard]] constexpr size_t find(string_view v, size_t pos = 0) const
+    {        
+        if(size() == 0) { return npos; }
+        if(v.size() > size()) { return npos; }
+        if(pos >= size()) { return npos; }
+        const size_t search_end_pos = size() - v.size();
+        if(pos > search_end_pos) { return npos; }
+
+        auto check = [&](auto p) {
+            return substr(p,npos).starts_with(v);
+        };
+
+        if (std::is_constant_evaluated()) {
+            if(check(pos)) { return pos; }
+            return find(v, pos + 1);
+        } else {
+            for(size_t idx = pos; idx <= search_end_pos; idx++) {
+                if(check(idx)) { return idx; }
+            }
+            return npos;
+        }
+    }
+
+    [[nodiscard]] constexpr size_t rfind(string_view v, size_t pos = npos) const
+    {        
+        if(size() == 0) { return npos; }
+        if(v.size() > size()) { return npos; }
+        const size_t last_searchable_pos = size() - v.size();
+        if(pos > last_searchable_pos) { pos = last_searchable_pos; }
+
+        auto check = [&](auto p) {
+            return substr(p,npos).starts_with(v);
+        };
+
+        if (std::is_constant_evaluated()) {
+            if(check(pos)) { return pos; }
+            if(pos == 0) { return npos; }
+            return find(v, pos - 1);
+        } else {
+            for(size_t idx = pos; idx > 0u; idx--) {
+                if(check(pos)) { return pos; }
+            }
+            if(check(0u)) { return 0u; }
+            return npos;
+        }
+    }
+
+    [[nodiscard, deprecated("return value shouldn't be bool")]] constexpr int compare(string_view v) const
+    {
+        if(v.size() != size()) return false;
+        return starts_with(v);
+    }
 };
 
 template <size_t N, typename char_t, const char_t(&String)[N]>

@@ -58,7 +58,7 @@ TEST(StringView,ConstexprFind)
     constexpr auto c = foo.find("what?");
     CHECK(a == 0);
     CHECK(b == 2);
-    CHECK(c == utl::string_view::npos);
+    CHECK(c == utl::npos);
 }
 
 TEST(StringView,ConstexprCompare)

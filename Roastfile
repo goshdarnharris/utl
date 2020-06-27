@@ -4,7 +4,7 @@
 import copy, os, luminaire.toolchain
 
 Frontend.target("ARCH",{"x86_64"},"x86_64")
-Frontend.target("MODE",{"debug","release"},"debug")
+Frontend.target("MODE",{"test","debug","sanitize"},"test")
 
 def condition(source):
     a = os.path.splitext(source)[1] == ".cc"
@@ -27,37 +27,61 @@ def configure(context):
     context.builder.append_cflag("-DCPPUTEST_USE_STD_CPP_LIB=0")
     context.builder.append_cflag("-DCPPUTEST_USE_MEM_LEAK_DETECTION=0")
     context.builder.append_cflag("-std=c++2a")
-    context.builder.append_cflag("-Wall")
-    context.builder.append_cflag("-Wextra")
     context.builder.append_cflag("-Werror")
-    context.builder.append_cflag("-pedantic")
-    #context.builder.append_cflag("-Weverything")
-    #context.builder.append_cflag("-Reverything")
+    context.builder.append_cflag("-Weverything")
     # relax some of the extreme constraints
     context.builder.append_cflag("-Wno-c++98-compat")
     context.builder.append_cflag("-Wno-c++98-compat-pedantic")
     context.builder.append_cflag("-Wno-weak-vtables")
     context.builder.append_cflag("-Wno-padded")
+    context.builder.append_cflag("-Wno-extra-semi-stmt")
+    context.builder.append_cflag("-Wno-covered-switch-default")
     # disable some of the c++ features that are unused
     context.builder.append_cflag("-fno-rtti")
     context.builder.append_cflag("-fno-exceptions")
     context.builder.append_cflag("-fno-threadsafe-statics")
     context.builder.append_cflag("-fcoroutines-ts")
     # context.builder.append_cflag("-ftime-trace")
-    if context.defined(MODE="release"):
-        luminaire.toolchain.OPTIMIZED(context.builder,optimize='s')
-        luminaire.toolchain.STRIP(context.builder)
+    if context.defined(MODE="test"):
+        context.builder.append_cflag("-Wno-global-constructors")
+        context.builder.append_cflag("-Wno-exit-time-destructors")
+        context.builder.append_cflag("-Wno-error-deprecated-declarations")
+        context.builder.append_cflag("-Wno-float-equal")
+
+        luminaire.toolchain.OPTIMIZED(context.builder,optimize='3')
         luminaire.toolchain.PRUNE(context.builder)
+        context.builder.append_cflag('-g3')
+        context.builder.append_lflag('-g3')
+        context.builder.append_cflag('-ggdb')
+        context.builder.append_lflag('-ggdb')
         # link-time optimization directives
         context.builder.append_cflag("-flto")
         context.builder.append_lflag("-flto")
         context.builder.append_cflag("-S")
         context.builder.append_lflag("-x ir")
     if context.defined(MODE="debug"):
-        luminaire.toolchain.UNOPTIMIZED(context.builder)
-        luminaire.toolchain.DEBUGGING(context.builder)
+        context.builder.append_cflag("-Wno-global-constructors")
+        context.builder.append_cflag("-Wno-exit-time-destructors")
+        context.builder.append_cflag("-Wno-error-deprecated-declarations")
+        context.builder.append_cflag("-Wno-float-equal")
+
+        luminaire.toolchain.OPTIMIZED(context.builder,optimize='s')
+        luminaire.toolchain.PRUNE(context.builder)
+        context.builder.append_cflag('-g3')
+        context.builder.append_lflag('-g3')
+        context.builder.append_cflag('-ggdb')
+        context.builder.append_lflag('-ggdb')
+        context.builder.append_lflag("-lm")
+    if context.defined(MODE="sanitize"):
+        luminaire.toolchain.OPTIMIZED(context.builder)
+        luminaire.toolchain.STRIP(context.builder)
+        luminaire.toolchain.PRUNE(context.builder)       
+        context.builder.append_cflag("-flto")
+        context.builder.append_lflag("-flto")
+        context.builder.append_cflag("-S")
+        context.builder.append_lflag("-x ir")
         sanitizers = []
-        # sanitizers.append("address")
+        sanitizers.append("address")
         sanitizers.append("alignment")
         sanitizers.append("bool")
         sanitizers.append("bounds")
@@ -67,10 +91,10 @@ def configure(context):
         sanitizers.append("integer-divide-by-zero")
         sanitizers.append("nonnull-attribute")
         sanitizers.append("null")
-        # sanitizers.append("nullability-arg")
-        # sanitizers.append("nullability-assign")
-        # sanitizers.append("nullability-return")
-        # sanitizers.append("pointer-overflow")
+        sanitizers.append("nullability-arg")
+        sanitizers.append("nullability-assign")
+        sanitizers.append("nullability-return")
+        sanitizers.append("pointer-overflow")
         sanitizers.append("return")
         sanitizers.append("returns-nonnull-attribute")
         sanitizers.append("shift")
@@ -89,11 +113,19 @@ def configure(context):
     context.search(path="packages/cpputest/src/Platforms/Gcc",condition=condition)
     context.search(path="packages/cpputest/src/CppUTest",condition=condition)
     context.search(path="test",condition=condition)
+    
+    context.builder.append_lflag(context.format("-Wl,-Map=build/{ARCH}/{MODE}/output.map"))
 
 @Frontend.rule(["build/{ARCH}/{MODE}/*.o"],["build/{ARCH}/{MODE}/unittest"])
 def link(context,inputs,outputs):
     context.builder.link_executable(inputs[0],outputs[0])
 @Frontend.rule(["%.{cc,cpp}"],["build/{ARCH}/{MODE}/{0}.o","build/{ARCH}/{MODE}/{0}.d"])
 def compile_source(context,inputs,outputs):
-    context.builder.compile_source(inputs[0],outputs[0])    
-    context.builder.perform_search(context,transform,outputs[1])
+    def do_it():
+        context.builder.compile_source(inputs[0],outputs[0])    
+        context.builder.perform_search(context,transform,outputs[1])
+    if "packages/cpputest" in str(inputs[0]):
+        with context.builder.push_cflags("-Wno-everything"):
+            do_it()
+    else: do_it()
+    

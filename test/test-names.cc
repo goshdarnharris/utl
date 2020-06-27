@@ -6,6 +6,7 @@
 #include "utl/utl.hh"
 #include "utl/names.hh"
 #include <utl/logger.hh>
+#include <utl/string.hh>
 
 TEST_GROUP(Names) {
 
@@ -28,14 +29,14 @@ TEST(Names,ConstexprGetTypeName)
 {
     constexpr utl::string_view foo{"hello"};
     constexpr auto name = utl::get_type_name(foo);
-    CHECK(name.compare("utl::string_view"))
+    CHECK(name.compare("utl::string_view"));
 }
 
 TEST(Names,GetTypeName)
 {
     utl::string_view foo{"hello"};
     auto name = utl::get_type_name(foo);
-    CHECK(name.compare("utl::string_view"))
+    CHECK(name.compare("utl::string_view"));
 }
 
 TEST(Names,LValueReference)
@@ -121,4 +122,24 @@ TEST(Names,EnumCount)
 {
     constexpr auto count = utl::enum_count<foo>;
     CHECK(count == 2);
+}
+
+TEST(Names,CopyIntoConstexprString)
+{
+    utl::string_view foo{"hello"};
+    constexpr auto name = utl::get_type_name(foo);
+    constexpr utl::string<20> bar{name.c_str()};
+    utl::log("\n\"%s\", \"%s\", %x, %x\n", name.c_str(), bar.c_str(), name.data(), bar.data());
+    CHECK(name.compare("utl::string_view"));
+    CHECK(bar.compare("utl::string_view"));
+}
+
+TEST(Names,CopyIntoString)
+{
+    utl::string_view foo{"hello"};
+    auto name = utl::get_type_name(foo);
+    utl::string<20> bar{name.c_str()};
+    utl::log("\n\"%s\", \"%s\", %x, %x\n", name.c_str(), bar.c_str(), name.data(), bar.data());
+    CHECK(name.compare("utl::string_view"));
+    CHECK(bar.compare("utl::string_view"));
 }

@@ -23,10 +23,10 @@ struct array {
         return _storage[idx];
     }
 
-    constexpr size_t size() const {
+    [[nodiscard]] constexpr size_t size() const {
         return N;
     }
-    constexpr size_t size() const volatile {
+    [[nodiscard]] constexpr size_t size() const volatile {
         return N;
     }
 
@@ -43,17 +43,17 @@ struct array {
         return &_storage[0];
     }
 
-    T* const end() {
-        return &_storage[N-1];
+    T* end() {
+        return &_storage[N];
     }    
-    const T* const end() const {
-        return &_storage[N-1];
+    const T* end() const {
+        return &_storage[N];
     }
-    volatile T* const end() volatile {
-        return &_storage[N-1];
+    volatile T* end() volatile {
+        return &_storage[N];
     }    
-    const volatile T* const end() const volatile {
-        return &_storage[N-1];
+    const volatile T* end() const volatile {
+        return &_storage[N];
     }
 
     constexpr T* data(void) {
@@ -69,6 +69,13 @@ struct array {
         return _storage;
     }
 };
+
+// template <typename T, typename... Args>
+//     requires (is_same_v<Args,T> && ...)
+// array(T first, Args... args) -> array<T,sizeof...(Args)>;
+
+template <typename T, size_t N>
+array(T (&)[N]) -> array<T,N>; //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
 
 } // namespace utl

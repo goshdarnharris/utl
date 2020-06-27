@@ -58,7 +58,7 @@ struct output : detail::output_base {
 //TODO: automatically convert error_codes to their strings.
 template <typename... Args>
 void log(utl::string_view const& format, Args&&... args) {
-    if(format.size() == 0 or format.size() == string_view::npos) return;
+    if(format.size() == 0 or format.size() == npos) return;
     static_assert(utl::platform::config::use_float || 
         (!contains_v<type_list<Args...>,float> && !contains_v<type_list<Args...>,double>),
         "floating point printing is disabled!");

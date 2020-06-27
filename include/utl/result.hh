@@ -526,7 +526,7 @@ struct default_observer_policy<void> {
 };
 
 //Finally we have the result type.
-template <typename T, typename E = error_code, 
+template <typename T = void, typename E = error_code, 
     template<class> typename ValueObserver = default_observer_policy,
     template<class> typename ErrorObserver = default_observer_policy
 >

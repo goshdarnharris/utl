@@ -3,23 +3,28 @@
 
 extern "C" {
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-prototypes"
 [[noreturn]]
-void __cxa_pure_virtual(void)
+void __cxa_pure_virtual(void) //NOLINT(clang-diagnostic-missing-prototypes)
 {
-    while(1);
+    while(true);
 }
 
 } // extern "C"
+#pragma clang diagnostic pop
 
 __attribute__((weak))
 void* operator new(size_t size)
 {
+    //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
     return malloc(size);
 }
 
 __attribute__((weak))
 void* operator new[](size_t size)
 {
+    //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
     return malloc(size);
 }
 
@@ -33,11 +38,13 @@ void* operator new(size_t size, void* storage)
 __attribute__((weak))
 void operator delete(void* pointer) noexcept
 {
+    //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
     free(pointer);
 }
 
 __attribute__((weak))
 void operator delete[](void* pointer) noexcept
 {
+    //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
     free(pointer);
 }

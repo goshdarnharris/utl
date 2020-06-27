@@ -33,7 +33,7 @@ push_output::~push_output() {
 namespace utl {
 
 void log(utl::string_view const& str) {
-    if(str.size() == 0 or str.size() == string_view::npos) return;
+    if(str.size() == 0 or str.size() == npos) return;
     auto res = logger::detail::get_global_output()->write(str);
     ignore_result(res);
     ignore_result(logger::detail::get_global_output()->write("\r\n"_sv));

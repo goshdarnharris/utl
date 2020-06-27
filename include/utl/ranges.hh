@@ -1,6 +1,8 @@
 #pragma once
 
 #include <utility>
+#include <utl/tuple.hh>
+#include <type_traits>
 
 namespace utl::ranges {
 
@@ -14,65 +16,110 @@ namespace utl::ranges {
 
 //I want to be able to customize what happens
 //when * is dereferenced.
+//I want to be able to customize what happens
+//when the iterator is incremented.
 
-namespace detail {
 
-template <typename T, typename R>
-struct marker {
-    T position;
-    R& range;
-    marker& operator++()
-    {
-        position++;
-        range.advance(position);
-        return *this;
-    }
-    bool operator!=(marker& other) const
-    {
-        return position != other.position;
-    }
-    typename R::enumeration& operator*()
-    {
-        return range.transform(position);
-    }
+
+
+
+template <typename T>
+constexpr auto begin(T&& container) { return container.begin(); }
+
+template <typename T, size_t N>
+constexpr auto begin(T (&container)[N]) { return &container[0]; }
+
+template <typename T>
+constexpr auto end(T&& container) { return container.end(); }
+
+template <typename T, size_t N>
+constexpr auto end(T (&container)[N]) { return &container[N-1]; }
+
+
+template <typename T>
+concept iterable = requires(T container) {
+    begin(container);
+    end(container);
 };
 
-template <typename T, typename R>
-marker(T,R&) -> marker<T,R>;
 
+template <iterable T>
+struct range_traits {
+    using begin_t = decltype(begin(std::declval<T>()));
+    using end_t = decltype(end(std::declval<T>()));
+    using value_t = decltype(*begin(std::declval<T>()));
+};
 
-} //namespace detail
-
-//FIXME: doing this with tuple-based bindings would be better; I can
-// pass reference types through more directly that way without changing them.
-//FIXME: this needs tests. badly.
-//TODO: consider using templight to see what's going on there in more detail.
-
-template <typename R>
-class enumerate {
-    using value_t = decltype(*std::declval<R>().begin());
-public:
-    struct enumeration {
+template <iterable T>
+constexpr auto enumerate(T&& container)
+{
+    struct iterator {
+        using container_begin_t = typename range_traits<T>::begin_t;
         size_t index;
-        value_t value;
+        container_begin_t iter;
+
+        constexpr void operator ++() { iter++; index++; }
+        constexpr bool operator !=(iterator const& other) const { return iter != other.iter; }
+        constexpr auto operator *() const { return utl::tie(index, *iter); }
+    }; 
+    struct enumerator {
+        T container;
+        constexpr auto begin() { return iterator{0, utl::ranges::begin(container)}; }
+        constexpr auto end() { return iterator{0, utl::ranges::end(container)}; }
     };
-private:
-    R& m_iterable;
-    enumeration m_enumeration;
-public:
-    enumerate(R& iterable) 
-      : m_iterable{iterable}, m_enumeration{0,*m_iterable.begin()}
-    {}
-    constexpr decltype(auto) begin() { return detail::marker{m_iterable.begin(), *this}; }
-    constexpr decltype(auto) end() { return detail::marker{m_iterable.end(), *this}; }
-    template <typename T>
-    void advance(T&& position) { m_enumeration.index++; m_enumeration.value = *position; }
-    template <typename T>
-    enumeration& transform(T&& position) { utl::maybe_unused(position); return m_enumeration; }
+    return enumerator{std::forward<T>(container)};
 };
 
-template <typename R>
-enumerate(R&&) -> enumerate<R>;
+
+template <typename T>
+concept is_reversable_iterator = requires(T& v) {
+    v--;
+    *v;
+};
+
+template <is_reversable_iterator T>
+struct reverse_iterator {
+    T active;
+    constexpr auto operator *() const { return *active; }
+    constexpr void operator++() { active--; }
+    constexpr bool operator!=(reverse_iterator const& other) const { return active != other.active; }
+};
+
+template <is_reversable_iterator T>
+reverse_iterator(T&&) -> reverse_iterator<T>;
+
+template <iterable T>
+constexpr auto reverse(T&& container)
+{
+    struct reversed {
+        T container;
+        constexpr auto begin() { return reverse_iterator{container.rbegin()}; }
+        constexpr auto end() { return reverse_iterator{container.rend()}; }
+    };
+    return reversed{container};
+}
 
 
-} //namespace utl
+// template <iterable T>
+// constexpr auto iterate(T&& container)
+// {
+//     struct iterator {
+//         using container_begin_t = typename range_traits<T>::begin_t;
+//         using container_end_t = typename range_traits<T>::end_t;
+//         container_begin_t iter;
+//         container_end_t end;
+
+//         void operator ++() { if(iter != end) iter++; }
+//         bool operator !=(iterator const& other) const { return iter != other.iter; }
+//         auto operator *() const { return utl::tie(*this, *iter); }
+//         void next() { operator++(); }
+//     }; 
+//     struct iterator_facade {
+//         T container;
+//         auto begin() { return iterator{utl::ranges::begin(container),utl::ranges::end(container)}; }
+//         auto end() { return iterator{utl::ranges::end(container),utl::ranges::end(container)}; }
+//     };
+//     return iterator_facade{std::forward<T>(container)};
+// }
+
+} //namespace utl::ranges

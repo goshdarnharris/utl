@@ -1,68 +1,101 @@
 #pragma once
 
+#include <utl/utl.hh>
 #include <utl/type-list.hh>
-#include <utl/string.hh>
 
 namespace utl {
 
 struct string_view {
-public:
-    static constexpr size_t npos = static_cast<size_t>(-1);
-    const char* str;
-    const size_t length;
-    
-    constexpr string_view(const char* s) : str{s}, length{s == nullptr ? 0 : __builtin_strlen(s)} {}
-    constexpr string_view(const char* s, size_t l) : str{s}, length{s == nullptr ? 0 : l} {}
-    
-    constexpr explicit string_view(std::nullptr_t) : str{nullptr}, length{0} {}
-    
-    template <size_t N>
-    constexpr string_view(string<N> const& s) : str{s.c_str()}, length{s.size()} {}
-    
-    constexpr const char* data() const { return str; }
-    constexpr size_t size() const { return length; }
-    constexpr string_view substr(size_t pos, size_t count) const
+private:
+    [[nodiscard]] constexpr char access(size_t index) const
     {
-        if(size() == 0) return {"",0};
-        if(pos >= size()) pos = size() - 1;
-        if(count == npos) count = size() - pos;
-        if(pos + count >= size()) count = size() - pos; 
-        return {&str[pos], count};
+        return str[index]; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
-    constexpr const char* c_str() const
+    [[nodiscard]] constexpr const char* address(size_t index) const
+    {
+        return &str[index]; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    }
+public:
+    const char* str;
+    const size_t len;
+    
+    constexpr string_view(const char* s) : str{s}, len{s == nullptr ? 0 : __builtin_strlen(s)} {}
+    constexpr string_view(const char* s, size_t l) : str{s}, len{s == nullptr ? 0 : l} {}    
+    constexpr explicit string_view(std::nullptr_t) : str{nullptr}, len{0} {}
+    
+    [[nodiscard]] constexpr const char* data() const { return str; }
+    [[nodiscard]] constexpr size_t size() const { return len; }    
+    [[nodiscard]] constexpr size_t length() const { return size(); }
+
+    [[nodiscard]] constexpr char operator[](size_t idx) const
+    {
+        return access(idx);
+    }
+
+    [[nodiscard]] constexpr const char* begin() const
+    {
+        return str;
+    }
+
+    [[nodiscard]] constexpr const char* end() const
+    {
+        return address(length());
+    }
+
+    [[nodiscard]] constexpr const char* rbegin() const
+    {
+        return address(length()-1);
+    }
+
+    [[nodiscard]] constexpr const char* rend() const
+    {
+        return address(0) - 1; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    }
+
+    [[nodiscard]] constexpr string_view substr(size_t pos, size_t count) const
+    {
+        if(length() == 0) return {"",0};
+        if(pos >= length()) pos = length() - 1;
+        if(count == npos) count = length() - pos;
+        if(pos + count >= length()) count = length() - pos; 
+        return {address(pos), count}; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    }
+
+    [[nodiscard]] constexpr const char* c_str() const
     {
         return data();
     }
-    constexpr bool starts_with(string_view v) const
+
+    [[nodiscard]] constexpr bool starts_with(string_view v) const
     {
-        if(v.size() > size()) { return false; }
-        if(size() == 0 && v.size() == 0) { return true; }
-        if(size() == 0) { return false; }
+        if(v.length() > length()) { return false; }
+        if(length() == 0 && v.length() == 0) { return true; }
+        if(length() == 0) { return false; }
         if (std::is_constant_evaluated()) {
-            if(str[0] == v.data()[0]) {
-                if(v.size() == 1) { return true; }
+            if(access(0) == v.access(0)) {
+                if(v.length() == 1) { return true; }
                 return substr(1,npos).starts_with(v.substr(1, npos));
             } else {
                 return false;
             }
         } else {
-            for(size_t idx = 0; idx < v.size(); idx++) {
-                if(str[idx] != v.data()[idx]) return false;
+            for(size_t idx = 0; idx < v.length(); idx++) {
+                if(access(idx) != v.access(idx)) return false;
             }
             return true;
         }
     }
-    constexpr size_t find(string_view v, size_t pos = 0) const
+
+    [[nodiscard]] constexpr size_t find(string_view v, size_t pos = 0) const
     {        
-        if(size() == 0) { return npos; }
-        if(v.size() > size()) { return npos; }
-        if(pos >= size()) { return npos; }
-        const size_t search_end_pos = size() - v.size();
+        if(length() == 0) { return npos; }
+        if(v.length() > length()) { return npos; }
+        if(pos >= length()) { return npos; }
+        const size_t search_end_pos = length() - v.length();
         if(pos > search_end_pos) { return npos; }
 
         auto check = [&](auto p) {
-            if(substr(p,npos).starts_with(v)) { return true; }
-            return false;
+            return substr(p,npos).starts_with(v);
         };
 
         if (std::is_constant_evaluated()) {
@@ -75,16 +108,16 @@ public:
             return npos;
         }
     }
-    constexpr size_t rfind(string_view v, size_t pos = npos) const
+
+    [[nodiscard]] constexpr size_t rfind(string_view v, size_t pos = npos) const
     {        
-        if(size() == 0) { return npos; }
-        if(v.size() > size()) { return npos; }
-        const size_t last_searchable_pos = size() - v.size();
+        if(length() == 0) { return npos; }
+        if(v.length() > length()) { return npos; }
+        const size_t last_searchable_pos = length() - v.length();
         if(pos > last_searchable_pos) { pos = last_searchable_pos; }
 
         auto check = [&](auto p) {
-            if(substr(p,npos).starts_with(v)) { return true; }
-            return false;
+            return substr(p,npos).starts_with(v);
         };
 
         if (std::is_constant_evaluated()) {
@@ -92,15 +125,17 @@ public:
             if(pos == 0) { return npos; }
             return find(v, pos - 1);
         } else {
-            for(size_t idx = pos; idx >= 0; idx--) {
+            for(size_t idx = pos; idx > 0u; idx--) {
                 if(check(pos)) { return pos; }
             }
+            if(check(0u)) { return 0u; }
             return npos;
         }
     }
-    constexpr bool compare(string_view v) const
+
+    [[nodiscard]] constexpr bool compare(string_view v) const
     {
-        if(v.size() != size()) return false;
+        if(v.length() != length()) return false;
         return starts_with(v);
     }
 };

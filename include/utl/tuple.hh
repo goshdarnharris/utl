@@ -2,27 +2,23 @@
 #define UTL_TUPLE_HH_
 
 #include <utl/type-list.hh>
+#include <utl/traits.hh>
 
 namespace utl {
 
-namespace detail {
-//TODO:
-// - rvalue tuple support
-// - value assignment
-
 template <size_t N, typename T>
 struct tuple_element {
+    using type = T;
     T value;
-    constexpr T& get() { return value; }
-    constexpr T const& get() const { return value; }
 };
 
+namespace detail {
 
 template <typename N, typename... Ts>
 struct tuple_impl;
 
 template <size_t... N, typename... Ts>
-struct tuple_impl<index_sequence<N...>, Ts...> : detail::tuple_element<N,Ts>... {
+struct tuple_impl<index_sequence<N...>, Ts...> : tuple_element<N,Ts>... {
     using types_t = utl::type_list<Ts...>;
 
     template <size_t M>
@@ -33,18 +29,8 @@ struct tuple_impl<index_sequence<N...>, Ts...> : detail::tuple_element<N,Ts>... 
 
     template <typename... Us, std::enable_if_t<sizeof...(Us) == sizeof...(Ts),int*> = nullptr>
     constexpr tuple_impl(Us&&... values) 
-        : detail::tuple_element<N,std::remove_reference_t<Us>>{std::forward<Us>(values)}... 
+        : tuple_element<N,Ts>{std::forward<Ts>(values)}... 
     {}
-
-    template <size_t M>
-    constexpr auto& get() {
-        return element_t<M>::get();
-    }
-
-    template <size_t M>
-    constexpr auto const& get() const {
-        return element_t<M>::get();
-    }
 };
 
 } //namespace detail
@@ -68,6 +54,57 @@ constexpr void for_each(detail::tuple_impl<index_sequence<Ns...>,Ts...>& tup, F&
     (functor(tup.template get<Ns>()),...);
 }
 
+template <size_t I, typename... Ts>
+constexpr auto&& get(tuple<Ts...>& t) { 
+    using value_t = typename tuple<Ts...>::template get_t<I>;
+    if constexpr (std::is_rvalue_reference_v<value_t>) {
+        return std::move(t.template tuple_element<I,value_t>::value);
+    } else {
+        return t.template tuple_element<I,value_t>::value; 
+    }
+}
+
+template <size_t I, typename... Ts>
+constexpr auto&& get(tuple<Ts...> const& t) { 
+    using value_t = typename tuple<Ts...>::template get_t<I>;
+    if constexpr (std::is_rvalue_reference_v<value_t>) {
+        return std::move(t.template tuple_element<I,value_t>::value);
+    } else {
+        return t.template tuple_element<I,value_t>::value; 
+    }
+}
+
+template <size_t I, typename... Ts>
+constexpr auto&& get(tuple<Ts...>&& t) { 
+    using value_t = typename tuple<Ts...>::template get_t<I>;
+    if constexpr (std::is_lvalue_reference_v<value_t>) {
+        return t.template tuple_element<I,value_t>::value;
+    } else {
+        return std::move(t.template tuple_element<I,value_t>::value); 
+    }
+}
+
+template <typename... Ts>
+struct tuple_size;
+
+template <typename... Ts>
+struct tuple_size<tuple<Ts...>> : utl::integral_constant<size_t,tuple<Ts...>::size()> {};
+
+template <typename... Args>
+constexpr auto tie(Args&... args) {
+    return tuple<Args&...>(args...);
+}
+
 } //namespace utl
+
+namespace std {
+
+template<typename... Ts>
+struct tuple_size<utl::tuple<Ts...>> : public std::integral_constant<size_t, utl::tuple<Ts...>::size()> {};
+
+template <size_t I, typename... Ts>
+struct tuple_element<I, utl::tuple<Ts...>> : public utl::tuple_element<I, typename utl::tuple<Ts...>::template get_t<I>> {};
+
+};
 
 #endif //UTL_TUPLE_HH_

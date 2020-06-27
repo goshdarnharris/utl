@@ -97,18 +97,30 @@ inline const auto& stack()
 
 inline void copy(section_table_entry& entry)
 {
-    utl::span<uint32_t> source{
-        reinterpret_cast<uint32_t*>(entry.load_address),
-        entry.size/sizeof(uint32_t)
+    utl::span<uint8_t> source{
+        reinterpret_cast<uint8_t*>(entry.load_address),
+        entry.size
     };
 
-    utl::span<uint32_t> destination{
-        reinterpret_cast<uint32_t*>(entry.target_address),
-        entry.size/sizeof(uint32_t)
+    utl::span<uint8_t> destination{
+        reinterpret_cast<uint8_t*>(entry.target_address),
+        entry.size
     };
 
-    for(auto& [idx, load_addr] : utl::ranges::enumerate(source)) {
+    for(auto [idx, load_addr] : utl::ranges::enumerate(source)) {
         destination[idx] = load_addr;
+    }
+}
+
+inline void zero(bss_table_entry& entry)
+{
+    utl::span<uint8_t> zone{
+        reinterpret_cast<uint8_t*>(entry.address),
+        entry.size
+    };
+
+    for(auto& loc : zone) {
+        loc = 0u;
     }
 }
 

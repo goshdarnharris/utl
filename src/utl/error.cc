@@ -12,13 +12,13 @@ namespace utl {
 #pragma clang diagnostic ignored "-Wnon-virtual-dtor"
 
 struct system_error_category : public error_category {
-    const utl::string_view message(int32_t value) const final;
-    const utl::string_view name() const final;
+    [[nodiscard]] utl::string_view message(int32_t value) const final;
+    [[nodiscard]] utl::string_view name() const final;
 };
 
 #pragma clang diagnostic pop
 
-const utl::string_view system_error_category::message(int32_t value) const {
+utl::string_view system_error_category::message(int32_t value) const {
     auto code = static_cast<system_error>(value);
     switch(code) {
         case system_error::OK:
@@ -28,7 +28,7 @@ const utl::string_view system_error_category::message(int32_t value) const {
     }
 }
 
-const utl::string_view system_error_category::name() const {
+utl::string_view system_error_category::name() const {
     return "system"_sv;
 }
 
@@ -41,11 +41,11 @@ error_code make_error_code(system_error code) {
 
 
 
-const utl::string_view error_category::message(int32_t value) const { 
+utl::string_view error_category::message(int32_t value) const { 
     utl::maybe_unused(value); return ""_sv; 
 }
 
-const utl::string_view error_category::name() const { 
+utl::string_view error_category::name() const { 
     return ""_sv; 
 }
 

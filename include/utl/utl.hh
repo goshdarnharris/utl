@@ -46,6 +46,8 @@ using sintb8_t = int64_t;
 template <typename... Ts> constexpr void maybe_unused(Ts&&...) {}
 
 
+inline constexpr size_t npos = static_cast<size_t>(-1);
+
 namespace MOVE {
 
 template <typename T>
@@ -83,7 +85,6 @@ using namespace MOVE;
 
 
 #include "utl-platform.hh"
-#include "utl/error.hh"
 #include "units.hh"
 
 namespace utl {
