@@ -12,8 +12,9 @@
 
 namespace utl {
 
+static constexpr size_t MAX_SPEC_SIZE = 16;
 static constexpr size_t MAX_FIELD_SIZE = 32;
-static constexpr size_t MAX_FORMATTED_INT_SIZE = 32;
+static constexpr size_t MAX_FORMATTED_INT_SIZE = 64;
 
 //from python:
 // replacement_field ::=  "{" [field_name] ["!" conversion] [":" format_spec] "}"
@@ -25,470 +26,754 @@ static constexpr size_t MAX_FORMATTED_INT_SIZE = 32;
 // conversion        ::=  "r" | "s" | "a"
 // format_spec       ::=  <described in the next section>
 
-
-// format_spec     ::=  [[fill]align][sign][#][0][width][grouping_option][.precision][type]
-// fill            ::=  <any character>
-// align           ::=  "<" | ">" | "=" | "^"
-// sign            ::=  "+" | "-" | " "
-// width           ::=  digit+
-// grouping_option ::=  "_" | ","
-// precision       ::=  digit+
-// type            ::=  "b" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "n" | "o" | "s" | "x" | "X" | "%"
-
 inline constexpr unsigned int HEXADECIMAL = 16;
 inline constexpr unsigned int DECIMAL = 10;
 inline constexpr unsigned int BINARY = 2;
 
+namespace fmt {
+    inline constexpr char error_char = '@';   
 
-constexpr bool is_digit(char ch)
-{
-    return (ch >= '0') and (ch <= '9');
-}
-
-constexpr unsigned int digit_to_int(char c)
-{
-    return static_cast<unsigned int>(c - '0');
-}
-
-// internal ASCII string to unsigned int conversion
-constexpr unsigned int ascii_to_int(utl::string_view ascii)
-{
-    unsigned int value = 0u;
-    for(char c : ascii) {
-        if(not is_digit(c)) break;
-        value *= DECIMAL;
-        value += digit_to_int(c);
+    constexpr bool is_digit(char ch)
+    {
+        return (ch >= '0') and (ch <= '9');
     }
 
-    return value;
-}
+    constexpr unsigned int digit_to_int(char c)
+    {
+        return static_cast<unsigned int>(c - '0');
+    }
 
-struct format_flags {
-    enum flag {
-        ZEROPAD     = 0b000000000001,
-        LEFT        = 0b000000000010,
-        PLUS        = 0b000000000100,
-        SPACE       = 0b000000001000,
-        HASH        = 0b000000010000,
-        UPPERCASE   = 0b000000100000,
-        CHAR        = 0b000001000000,
-        SHORT       = 0b000010000000,
-        LONG        = 0b000100000000,
-        LONG_LONG   = 0b001000000000,
-        PRECISION   = 0b010000000000,
-        ADAPT_EXP   = 0b100000000000
+    // internal ASCII string to unsigned int conversion
+    constexpr unsigned int ascii_to_int(utl::string_view ascii)
+    {
+        unsigned int value = 0u;
+        for(char c : ascii) {
+            if(not is_digit(c)) break;
+            value *= DECIMAL;
+            value += digit_to_int(c);
+        }
+
+        return value;
+    }
+
+    enum class alignment {
+        LEFT,
+        CENTER,
+        RIGHT
     };
-    uint32_t value = 0;
-    constexpr void set(flag f) { value |= static_cast<uint32_t>(f); }
-    constexpr void clear(flag f) { value &= ~static_cast<uint32_t>(f); }
 
-    template <same_as<flag>... Args>
-    constexpr bool check(Args&&... args) { 
-        return ((value & static_cast<uint32_t>(args)) && ...); 
-    }
+    struct format_options {
 
-    constexpr bool zeropad() { return check(ZEROPAD); }
-    constexpr bool left() { return check(LEFT); }
-    constexpr bool plus() { return check(PLUS); }
-    constexpr bool space() { return check(SPACE); }
-    constexpr bool hash() { return check(HASH); }
-    constexpr bool uppercase() { return check(UPPERCASE); }
-    constexpr bool character() { return check(CHAR); }
-    constexpr bool long_int() { return check(LONG); }
-    constexpr bool long_long_int() { return check(LONG_LONG); }
-    constexpr bool precision() { return check(PRECISION); }
-    constexpr bool adapt_exp() { return check(ADAPT_EXP); }
-};
+        enum class signs : uint8_t {
+            BOTH,
+            NEGATIVE_ONLY,
+            SPACE
+        };
 
-// output the specified string in reverse, taking care of any zero-padding
-//formerly _out_rev
-constexpr void out_pad_reverse(callable<void,char> auto&& out, utl::span<char> input, 
-    unsigned int output_width, format_flags flags)
-{
-    size_t out_chars = 0;
-    // pad spaces up to given width
-    if(not flags.left() and not flags.zeropad()) {
+        enum class grouping_options : uint8_t {
+            NONE,
+            SEP_COMMA,
+            SEP_USCORE
+        };
 
-        for(size_t i = input.size(); i < output_width; i++) {
-            out(' ');
-            out_chars++;
+        char fill = ' ';
+        alignment align = alignment::LEFT;
+        signs sign = signs::NEGATIVE_ONLY; 
+        bool alternate_form = false;
+        bool zero_pad = false;
+        size_t width = 0;
+        grouping_options grouping_option = grouping_options::NONE;
+        bool has_precision = false;
+        size_t precision = utl::npos;
+        char presentation = '\0';
+    };     
+
+    constexpr format_options parse_format_options(utl::string_view view, format_options defaults = {})
+    {
+        // format_spec     ::=  [[fill]align][sign][#][0][width][grouping_option][.precision][type]
+        // fill            ::=  <any character>
+        // align           ::=  "<" | ">" | "=" | "^"
+        // sign            ::=  "+" | "-" | " "
+        // width           ::=  digit+
+        // grouping_option ::=  "_" | ","
+        // precision       ::=  digit+
+        // type            ::=  "b" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "n" | "o" | "s" | "x" | "X" | "%"
+        format_options spec = defaults;
+
+        auto iter = utl::ranges::begin(view);
+        auto end = utl::ranges::end(view);
+        size_t pos = 0;
+
+        auto check = [&](auto it) { return it != end; };
+
+        auto is_alignment = [](char c) { return (c == '<' or c == '>' or c == '^'); };        
+
+        auto check_advance = [&]() {
+            if(not check(iter)) return false;
+            if(not check(iter++)) return false;
+            pos++;
+            return true;
+        };        
+
+        auto advance_get_digits = [&]() {
+            size_t mark = pos;
+            size_t count = 1;
+            while(check_advance() and is_digit(*iter)) count++;
+            return ascii_to_int(view.substr(mark,count));
+        };
+        
+        if(not check(iter)) return spec;
+
+        //If the 2nd character is alignment, the first character is fill.
+        if(is_alignment(view.at(1,'\0'))) {            
+            if(*iter == '{' or *iter == '}') {
+                //reject
+            } else {      
+                spec.fill = *iter;
+            }
+
+            if(not check_advance()) return spec;
         }
-    }
 
-    // reverse string
-    for(char c : utl::ranges::reverse(input)) {
-        out(c);
-        out_chars++;
-    }
-
-    // append pad spaces up to given width
-    if(flags.left()) {
-        while(out_chars++ < output_width) out(' ');
-    }
-}
-
-// static size_t _out_rev(out_fct_type out, char* buffer, size_t idx, 
-//     size_t maxlen, const char* buf, size_t len, unsigned int width, 
-//     unsigned int flags)
-// out -> char output functor
-// buffer -> output buffer (goes away)
-// idx -> output index (goes away)
-// maxlen -> maximum output length (goes away)
-// buf -> input buffer
-// len -> input buffer length
-// width -> output width
-// flags -> format_flags
-
-
-// internal itoa format, formerly _ntoa_format
-static constexpr void format_and_blit(callable<void,char> auto&& out, utl::span<char> working, size_t& working_pos, 
-    bool negative, unsigned int base, unsigned int prec, unsigned int width, format_flags flags)
-{
-
-  // pad leading zeros
-    if(not flags.left()) {
-        if(width and flags.zeropad() and (negative or (flags.plus() and flags.space()))) {
-            width--;
+        //align
+        switch(*iter) {
+            case '<':
+                spec.align = alignment::LEFT;
+                if(not check_advance()) return spec;
+                break;
+            case '>':
+                spec.align = alignment::RIGHT;
+                if(not check_advance()) return spec;
+                break;
+            case '^':                
+                spec.align = alignment::CENTER;
+                if(not check_advance()) return spec;
+                break;
+            default:
+                break;
         }
-        while((working_pos < prec) and (working_pos < working.size())) {
-            working[working_pos++] = '0';
-        }
-        while(flags.zeropad() and (working_pos < width) and (working_pos < working.size())) {
-            working[working_pos++] = '0';
-        }
-    }
 
-    // handle hash
-    if(flags.hash()) {
-        if((not flags.precision()) and working_pos and ((working_pos == prec) || (working_pos == width))) {
-            working_pos--;
-            if(working_pos and (base == HEXADECIMAL)) {
-                working_pos--;
+        //sign
+        switch(*iter) {
+            case '+':
+                spec.sign = format_options::signs::BOTH;
+                if(not check_advance()) return spec;
+                break;
+            case '-':
+                spec.sign = format_options::signs::NEGATIVE_ONLY;
+                if(not check_advance()) return spec;
+                break;
+            case ' ':
+                spec.sign = format_options::signs::SPACE;
+                if(not check_advance()) return spec;
+                break;
+            default:
+                break;
+        }
+
+        //alternate form
+        if(*iter == '#') {
+            //do the thing with it
+            spec.alternate_form = true;
+            if(not check_advance()) return spec;
+        }
+
+        //zero padding
+        if(*iter == '0') {
+            spec.zero_pad = true;
+            if(not check_advance()) return spec;
+        }
+
+        //width
+        if(is_digit(*iter)) {
+            spec.width = advance_get_digits();
+            if(not check(iter)) return spec;
+        }
+
+        //grouping option
+        switch(*iter) {
+            case '_':
+                spec.grouping_option = format_options::grouping_options::SEP_USCORE;
+                if(not check_advance()) return spec;
+                break;
+            case ',':
+                spec.grouping_option = format_options::grouping_options::SEP_COMMA;
+                if(not check_advance()) return spec;
+                break;
+            default:
+                break;
+        }
+
+        //precision
+        if(*iter == '.') {
+            if(not check_advance()) return spec;
+            
+            if(is_digit(*iter)) {
+                spec.has_precision = true;
+                spec.precision = advance_get_digits();
+                if(not check(iter)) return spec;
             }
         }
-        if((base == HEXADECIMAL) and (not flags.uppercase()) and (working_pos < working.size())) {
-            working[working_pos++] = 'x';
-        } else if((base == HEXADECIMAL) and flags.uppercase() and (working_pos < working.size())) {
-            working[working_pos++] = 'X';
-        } else if((base == BINARY) and (working_pos < working.size())) {
-            working[working_pos++] = 'b';
-        }
-        if(working_pos < working.size()) {
-            working[working_pos++] = '0';
-        }
+        
+        spec.presentation = *iter;
+
+        return spec;
     }
 
-    if(working_pos < working.size()) {
-        if(negative) {
-            working[working_pos++] = '-';
-        } else if(flags.plus()) {
-            working[working_pos++] = '+';  // ignore the space if the '+' exists
-        } else if(flags.space()) {
-            working[working_pos++] = ' ';
-        }
-    }
-
-    out_pad_reverse(out, {working.data(), working_pos}, width, flags);
-}
-
-// internal itoa for 'long' type
-static constexpr void ulong_to_ascii(callable<void,char> auto&& out, unsigned long value, 
-    bool negative, unsigned long base, unsigned int prec, unsigned int width, format_flags flags)
-{
-    utl::array<char,MAX_FORMATTED_INT_SIZE> working{};
-    size_t working_pos = 0u;
-
-    // no hash for 0 values
-    if(!value) {
-        flags.clear(format_flags::HASH);
-    }
-    // write if precision != 0 and value is != 0
-    if(not flags.precision() or value) {
-        do {
-            const auto digit_value = static_cast<unsigned int>(value % base);
-            auto digit = digit_value < DECIMAL ? '0' + digit_value : (flags.uppercase() ? 'A' : 'a') + digit_value - DECIMAL;
-            working[working_pos++] = static_cast<char>(digit);
-            value /= base;
-        } while(value && (working_pos < working.size()));
-    }
-
-    format_and_blit(out, working, working_pos, negative, static_cast<unsigned int>(base), prec, width, flags);
-}
-
-struct field {
-    using arg_id_t = size_t;
-
-    enum modes : uint8_t {
-        UNKNOWN,
-        AUTOMATIC_NUMBERING,
-        MANUAL_NUMBERING
-    };
-    arg_id_t arg_index = 0;
-    modes mode = modes::AUTOMATIC_NUMBERING;
-    utl::string_view format_spec = "";
-};
-
-namespace detail {
-
-    struct error{};
-
-    struct format_state {
-        utl::string_view format;
-        size_t pos;
+    class arg_spec {
+    public:
+        enum class modes : uint8_t {
+            UNKNOWN,
+            MANUAL,
+            AUTOMATIC
+        };
+    private:
+        modes m_mode{modes::AUTOMATIC};
+        size_t m_id{};
+    public:
+        constexpr arg_spec(utl::string_view view)
+          : m_mode{view.length() > 0 and is_digit(view[0]) ? modes::MANUAL : modes::AUTOMATIC},
+            m_id{m_mode == modes::MANUAL ? ascii_to_int(view) : 0}
+        {}
+        constexpr arg_spec(size_t id_) : m_mode{modes::MANUAL}, m_id{id_} {}
+        constexpr arg_spec() = default;
+        [[nodiscard]] constexpr modes mode() const { return m_mode; }
+        [[nodiscard]] constexpr auto id() const { return m_id; }
     };
 
-    template <typename T, callable<void,char> F>
-    static void format_erased(const void* arg, F&& out, field const& f)
+    struct field {
+        arg_spec id{};
+        utl::string<MAX_SPEC_SIZE> spec{};
+    };
+
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wweak-vtables"
+    struct output {
+        constexpr virtual ~output() = default;
+        constexpr virtual void operator()(char c) = 0;
+        constexpr virtual void operator()(utl::string_view view) = 0;
+    };    
+    #pragma clang diagnostic pop
+
+    // output the specified string. could be in reverse.
+    // if the string represents a number type, ignore precision (it either doesn't apply or has a different meaning)
+    // if it isn't a number type, precision is the maximum number of chars to take from the field value.
+    constexpr void align_pad_out(output& out, utl::string_view input, char fill, alignment align, size_t min_width, 
+        size_t max_content_chars = utl::npos, bool reverse = false)
     {
-        _format(*static_cast<const T*>(arg), std::forward<F>(out), f);
+        size_t pad_chars = input.size() < min_width ? min_width - input.size() : 0;
+
+        switch(align) {
+            case alignment::LEFT:
+                break;
+            case alignment::CENTER:
+                for(size_t i = 0; i < pad_chars/2; i++) {
+                    out(fill);
+                }
+                break;
+            case alignment::RIGHT:
+                for(size_t i = 0; i < pad_chars; i++) {
+                    out(fill);
+                }
+                break;
+        }
+
+        //FIXME: need a better way to express what default means for each type
+        //FIXME: need a good way to express what "precision" means
+
+        // reverse string
+        if(reverse) {
+            size_t count = 0;
+            for(char c : utl::ranges::reverse(input)) {
+                count++;
+                out(c);
+                if(count >= max_content_chars) break;
+            }
+        } else {
+            out(input.substr(0,max_content_chars));
+        }
+
+        // append pad spaces up to given width
+        switch(align) {
+            case alignment::LEFT:
+                for(size_t i = 0; i < pad_chars; i++) {
+                    out(fill);
+                }
+                break;
+            case alignment::CENTER:
+                for(size_t i = 0; i < (pad_chars/2) + (pad_chars%2); i++) {
+                    out(fill);
+                }
+                break;
+            case alignment::RIGHT:               
+                break;
+        }
     }
 
-    template <callable<void,char> F>
-    using format_erased_t = void(*)(const void*,F&&,field const&);
+    enum class bases : uint8_t {
+        BINARY = 2,
+        OCTAL = 8,
+        DECIMAL = 10,
+        HEXADECIMAL = 16
+    };
 
-    template <callable<void,char> F>
-    struct arg {
-        const void* value;
-        format_erased_t<F> do_format;
+    constexpr bool is_uppercase(char c) {
+        return (c >= 'A' && c <= 'Z');
+    }
+
+    // internal itoa format, formerly _ntoa_format
+    constexpr void reverse_integer_decorate(output& out, utl::span<char> working, size_t& working_pos, 
+        bool negative, bases base, format_options options)
+    {
+        auto width = options.width;
+        // pad leading zeros
+        if(options.align != alignment::LEFT) {
+            bool leading_char = negative or options.sign == format_options::signs::BOTH
+                or options.sign == format_options::signs::SPACE;
+            if(width and options.zero_pad and leading_char) {
+                width--;
+            }
+            if(options.alternate_form and base != bases::DECIMAL) {
+                width --;
+                if(working_pos and (base == bases::HEXADECIMAL || base == bases::BINARY)) {
+                    width--;
+                }
+            }
+            while(options.zero_pad and (working_pos < width) and (working_pos < working.size())) {
+                working[working_pos++] = '0';
+            }
+        }
+
+        if(options.alternate_form) {
+            switch(base) {
+                case bases::HEXADECIMAL:
+                    if(is_uppercase(options.presentation) and (working_pos < working.size())) {
+                        working[working_pos++] = 'X';
+                    } else if(working_pos < working.size()) {
+                        working[working_pos++] = 'x';
+                    }
+                    break;
+                case bases::DECIMAL:
+                    [[fallthrough]];
+                case bases::OCTAL:
+                    break;
+                case bases::BINARY:
+                    if(is_uppercase(options.presentation) and (working_pos < working.size())) {
+                        working[working_pos++] = 'B';
+                    } else if(working_pos < working.size()) {
+                        working[working_pos++] = 'b';
+                    }
+                    break;
+            }
+            if(working_pos < working.size()) {
+                working[working_pos++] = '0';
+            }
+        }
+
+        if(working_pos < working.size()) {
+            if(negative) {
+                working[working_pos++] = '-';
+            } else if(options.sign == format_options::signs::BOTH) {
+                working[working_pos++] = '+';
+            } else if(options.sign == format_options::signs::SPACE) {
+                working[working_pos++] = ' ';
+            }
+        }
+
+        align_pad_out(out, {working.data(), working_pos}, options.fill, options.align, options.width, working_pos, true);
+    }
+
+    // internal itoa for 'long' type
+    static constexpr void format_ulong(output& out, unsigned long value, 
+        bool negative, bases base, format_options options)
+    {
+        utl::array<char,MAX_FORMATTED_INT_SIZE> working{};
+        size_t working_pos = 0u;
+        size_t digit_pos = 0u;
+        
+        // write if precision != 0 and value is != 0
+        if(value) {
+            do {
+                const auto digit_value = static_cast<unsigned int>(value % static_cast<unsigned int>(base));
+                auto digit = digit_value < DECIMAL ? '0' + digit_value : (is_uppercase(options.presentation) ? 'A' : 'a') + digit_value - DECIMAL;
+                
+                digit_pos++;
+                working[working_pos++] = static_cast<char>(digit);
+                value /= static_cast<unsigned int>(base);    
+
+                
+                if(digit_pos % 3 == 0) {
+                    switch(options.grouping_option) {
+                        case format_options::grouping_options::SEP_COMMA:
+                            working[working_pos++] = ',';
+                            if(working_pos == working.size()) break;
+                            break;
+                        case format_options::grouping_options::SEP_USCORE:
+                            working[working_pos++] = '_';
+                            if(working_pos == working.size()) break;
+                            break;
+                        case format_options::grouping_options::NONE:
+                            break;
+                    }
+                }
+            } while((value > 0) and (working_pos < working.size()));
+        }
+
+        reverse_integer_decorate(out, working, working_pos, negative, base, options);
+    }
+
+    constexpr bases get_int_spec_base(char c)
+    {
+        switch(c) {
+            case 'B':
+                [[fallthrough]];
+            case 'b':
+                return bases::BINARY;
+            case 'o':
+                return bases::OCTAL;
+            case 'X':
+                [[fallthrough]];
+            case 'x':
+                return bases::HEXADECIMAL;
+            case 'd':
+                [[fallthrough]];
+            default:
+                return bases::DECIMAL;
+        }
+    }
+
+    // template <typename T>
+    // constexpr void _format(T&&, output&, field const&)
+    // {
+    //     static_assert(not std::is_same_v<T,T>, "to format your own types, implement a _format function: "
+    //         "constexpr void _format(T& arg, utl::output& out, utl::fmt::field const& f)");
+    // }
+
+    template <typename T, typename As>
+    concept formattable_as = same_as<T,As>;
+
+    namespace detail {
+        struct error{};    
+
+        template <typename F>
+        struct output_t final : public virtual output {
+            F& call;
+            output_t(F& c) : call{c} {}
+            void operator()(char c) final
+            {
+                call(c);
+            }            
+            void operator()(utl::string_view view) final
+            {
+                for(char c : view) call(c);
+            }
+        };
+
+        template <typename F>
+        output_t(F&) -> output_t<F>;
+
+        namespace {
+            struct varg {
+                constexpr varg() = default;
+                constexpr virtual ~varg() = default;
+                constexpr virtual void format(output& out, field const& f) const = 0;
+            };
+        }
 
         template <typename T>
-        constexpr arg(T* a)
-        : value{static_cast<const void*>(a)}, do_format{&format_erased<T,F>}
-        {}
+        struct arg_t final : public virtual varg {
+            T const& value;
+            arg_t(T& v) : value{v} {}
+            void format(output& out, field const& f) const final
+            {
+                _format(value, out, f);
+            }
+        };
 
-        constexpr auto format(same_as<F> auto&& out, field const& f)
+        template <typename... Ts>
+        struct arg_storage {
+            static constexpr size_t n_args = sizeof...(Ts);
+            using arg_storage_t = utl::tuple<arg_t<Ts>...>;
+            using varg_storage_t = utl::array<varg const* const,n_args>;
+
+            const arg_storage_t args;
+            const varg_storage_t vargs;
+
+            template <size_t... N>
+            constexpr arg_storage(index_sequence<N...>, Ts&&... args_)
+            : args{std::forward<Ts>(args_)...},
+                vargs{&utl::get<N>(args)...}
+            {}
+
+            constexpr arg_storage(Ts&&... args_) 
+            : arg_storage{utl::make_index_sequence<n_args>{}, std::forward<Ts>(args_)...}
+            {}
+        };
+
+        template <typename... Ts>
+        arg_storage(Ts&&...) -> arg_storage<Ts...>;
+
+        struct arglist {
+            using arg_view_t = utl::span<varg const* const>;
+            struct next_arg_tag{};
+
+            const arg_view_t view;
+            size_t next_arg;
+
+            template <typename... Ts>
+            arglist(arg_storage<Ts...> const& s) : view{s.vargs.data(),s.vargs.size()}, next_arg{0} {}
+
+            varg const& consume_next() { return *view[next_arg++]; }
+            [[nodiscard]] varg const& get(size_t idx) const { return *view[idx]; }
+            [[nodiscard]] bool valid_id(size_t idx) const { return idx < view.size(); }
+            [[nodiscard]] bool valid_id(next_arg_tag) const { return next_arg < view.size(); }
+        };
+        
+        template <typename... Ts>
+        constexpr auto wrap_args(Ts&&... vs)
         {
-            do_format(value, std::forward<F>(out), f);
+            return arg_storage{std::forward<Ts>(vs)...};
         }
-    };
 
-    template <callable<void,char> F>
-    struct arglist {
-        utl::span<arg<F>> args;
-        size_t next_arg = 0;
-        arg<F>& consume_next() { return args[next_arg++]; }
-    };
+        template <typename... Ts>
+        constexpr auto erase_args(arg_storage<Ts...> const& s)
+        {
+            return arglist{s};
+        }
 
-    template <callable<void,char> F, typename... Args>
-    constexpr utl::array<arg<F>,sizeof...(Args)> erase_args(Args&&... args)
+    } //namespace detail
+
+    void vformat(output& out, utl::string_view format, detail::arglist& args, 
+        arg_spec::modes id_mode = arg_spec::modes::UNKNOWN);
+
+    inline auto make_field(utl::string_view view, detail::arglist& args)
     {
-        return {{{&args}...}};
-    }
-
-    
-
-    constexpr field parse_field(utl::string_view view)
-    {    
         constexpr utl::string_view field_spec_start = ":";
+        if(view.length() == 0) return field{};
 
-        if(view.size() == 0) return field{};
+        size_t pos = 0;
+        utl::string<MAX_SPEC_SIZE> formatted{};
+        auto write_buffer = [&] (char c) {
+            if(pos < formatted.size()) formatted[pos++] = c;
+        };
+        detail::output_t into_buffer{write_buffer};
 
         const size_t mark = view.find(field_spec_start);
 
-        field::arg_id_t arg_index{};
-        auto mode = field::modes::AUTOMATIC_NUMBERING;
-
-        //for now, just numerical ids.
-        auto arg_id_view = view.substr(0,mark);
-        if(arg_id_view.length() > 0 and is_digit(arg_id_view[0])) {
-            arg_index = ascii_to_int(arg_id_view);
-            mode = field::modes::MANUAL_NUMBERING;
+        if(mark != utl::npos and mark+1 < view.length()) {
+            auto spec_view = view.substr(mark+1,utl::npos);
+            if(spec_view.length() > 0 and spec_view.length() < MAX_SPEC_SIZE) {
+                vformat(into_buffer, view.substr(mark+1,utl::npos), args);
+            }
         }
 
-        if(mark != utl::npos and mark + 1 < view.size()) {
-            auto spec = view.substr(mark+1, utl::npos);
-            return {arg_index,mode,spec};
-        } 
-        return {arg_index,mode};
+        return field{arg_spec{view.substr(0,mark)}, formatted};
     }
 
-    template <callable<void,char> F>
-    constexpr auto make_field(utl::string_view view, arglist<F>& args)
+    inline void vformat(output& out, utl::string_view format, detail::arglist& args, 
+        arg_spec::modes id_mode)
     {
-        // size_t pos = 0;
-        // utl::array<char,MAX_FIELD_SIZE> formatted{};
-        // auto buffer_out = [&] (char c) {
-        //     if(pos < formatted.size()) formatted[pos++] = c;
-        // };
-        //balls. the args we're passing around are templated on
-        //a different output function than the one we want to give
-        //to _vformat.
-        //FIXME: the note above this. for now, no field formatting.
-        // _vformat(buffer_out, view, args);
-        utl::maybe_unused(args);
-        //FIXME: need to know if the formatting had an error.
-        return parse_field(view);
+        //FIXME: id_mode isn't being passed around properly.
+        struct format_state {
+            enum states {
+                ECHO,
+                ESCAPED_ENTRY,
+                ESCAPED_EXIT,
+                PROCESS_FIELD
+            };
+            states active = ECHO;
+        };
+        
+        constexpr auto field_entry = '{';
+        constexpr auto field_exit = '}';
+        size_t field_inner_depth = 0;
+        auto state = format_state{};
+        size_t mark{};
+
+        auto process_field = [&](field f) {
+            if(id_mode == arg_spec::modes::UNKNOWN) {
+                id_mode = f.id.mode();
+            }
+
+            if(f.id.mode() != id_mode) {            
+                //switching field numbering modes isn't allowed.
+                out(error_char);
+                return;
+            }
+
+            if(f.id.mode() == arg_spec::modes::AUTOMATIC) {
+                if(args.valid_id(detail::arglist::next_arg_tag{})) {
+                    args.consume_next().format(out,f);
+                }
+            } else if(args.valid_id(f.id.id())) {
+                args.get(f.id.id()).format(out,f);
+            } else {
+                out(error_char);
+            }
+        };
+
+        for(const auto&& [pos,c] : utl::ranges::enumerate(format)) {
+            // utl::log(" vf: %d, %c, %d", pos, c, state.active);
+            switch(state.active) {
+                case format_state::ECHO:
+                    if(c == field_entry) {
+                        state.active = format_state::ESCAPED_ENTRY;
+                    } else if(c == field_exit) {
+                        state.active = format_state::ESCAPED_EXIT;
+                        continue;
+                    } else {
+                        out(c);
+                    }
+                    break;
+                case format_state::ESCAPED_ENTRY:   
+                    if(c == field_entry) {
+                        //escaped for output
+                        out(c);
+                        state.active = format_state::ECHO;
+                    } else if(c == field_exit) {
+                        //you are standing in an empty field...
+                        process_field(field{});
+                        state.active = format_state::ECHO;
+                        break;
+                    } else {
+                        mark = pos;
+                        state.active = format_state::PROCESS_FIELD;
+                    }             
+                    break;
+                case format_state::ESCAPED_EXIT:
+                    if(c == field_entry) {
+                        state.active = format_state::ESCAPED_ENTRY;
+                    } else {
+                        out(c);
+                        state.active = format_state::ECHO;
+                    }
+                    break;
+                case format_state::PROCESS_FIELD:
+                    if(c == '{') {
+                        //we support fields in fields
+                        field_inner_depth++;
+                    } else if(c == '}' and field_inner_depth > 0) {
+                        field_inner_depth--;
+                    } else if(c == '}') {
+                        //FIXME: need to know if formatting the field yielded an error.
+                        auto f = make_field(format.substr(mark, pos - mark), args);
+                        process_field(f);
+                        state.active = format_state::ECHO;
+                    }
+                    break;
+            }
+        }
     }
 
-} //namespace detail
+    template <typename T>
+    concept formattable = requires(T&& v, output& o, field& f) {
+        _format(v, o, f);
+    };
+} //namespace fmt
 
-
-
-
-template <typename T, typename As>
-concept formattable_as = same_as<T,As>;
-
-template <typename T>
-constexpr void _format(T&&, callable<void,char> auto&&, field const&)
-{
-    static_assert(not std::is_same_v<T,T>, "to format your own types, implement a _format function: "
-        "constexpr void _format(T& arg, utl::callable<void,char> auto&& out, utl::field const& f)");
-}
-
-constexpr void _format(detail::error e, callable<void,char> auto&& out, field const& f)
-{
-    //TODO: actually implement formatters
-    utl::maybe_unused(f,e);
-    out('@');
-}
-
-constexpr void _format(formattable_as<int> auto arg, callable<void,char> auto&& out, field const& f)
-{
-    utl::maybe_unused(f);
-    ulong_to_ascii(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, DECIMAL, 0, 0, {});
-}
-
-constexpr void _format(formattable_as<unsigned int> auto arg, callable<void,char> auto&& out, field const& f)
-{
-    utl::maybe_unused(f);    
-    ulong_to_ascii(out, static_cast<unsigned long>(arg), false, DECIMAL, 0, 0, {});
-}
-
-constexpr void _format(formattable_as<float> auto arg, callable<void,char> auto&& out, field const& f)
-{
-    utl::maybe_unused(arg, f);
-    out('f');
-}
-
-constexpr void _format(utl::string_view arg, callable<void,char> auto&& out, field const& f)
-{
-    utl::maybe_unused(f);
-    for(auto c : arg) out(c);
-}
-
-
-
-template <size_t N, typename... Args>
+template <size_t N, fmt::formattable... Args>
 constexpr auto format(utl::string_view format, Args&&... args)
 {
-    array<char,N> buffer;
+    array<char,N> buffer{};
     format_into(buffer, format, std::forward<Args>(args)...);
     return utl::string<N>{buffer.data()};
 }
 
-template <typename T, typename... Args>
+template <typename T, fmt::formattable... Args>
     requires requires(T&& v) {
         v[size_t{}] = char{};
+        { v.size() } -> utl::convertible_to<size_t>;
     }
-constexpr void format_into(T&& buffer, utl::string_view format, Args&&... args)
+constexpr size_t format_into(T&& buffer, utl::string_view format, Args&&... args)
 {
     size_t pos = 0;
     auto buffer_out = [&] (char c) {
         if(pos < buffer.size()) buffer[pos++] = c;
     };
-    format_to(buffer_out, format, std::forward<Args>(args)...);  
+    format_to(buffer_out, format, std::forward<Args>(args)...);
+    return pos;
 }
 
-template <callable<void,char> F, typename... Args>
+template <callable<void,char> F, fmt::formattable... Args>
 constexpr void format_to(F&& out, utl::string_view format, Args&&... args)
 {
-    auto erased = detail::erase_args<F>(args...);
-    auto list = detail::arglist<F>{erased};
-    _vformat(std::forward<F>(out),format,list);
+    const auto arg_storage = fmt::detail::wrap_args(std::forward<Args>(args)...);
+    auto arg_view = fmt::detail::erase_args(arg_storage);
+    fmt::detail::output_t call{std::forward<F>(out)};
+    fmt::vformat(call,format,arg_view);
 }
 
-
-
-template <callable<void,char> F>
-constexpr void _vformat(F&& out, utl::string_view format, detail::arglist<F>& args)
+template <fmt::formattable... Args>
+constexpr void format_to(fmt::output& out, utl::string_view format, Args&&... args)
 {
-    struct format_state {
-        enum states {
-            ECHO,
-            ESCAPED_ENTRY,
-            ESCAPED_EXIT,
-            PROCESS_FIELD
-        };
-        states active = ECHO;
-        size_t next_arg = 0;
-        field::modes mode = field::modes::UNKNOWN;
-        size_t consume_arg() { return next_arg++; }
-    };
-    //FIXME: there's internal _vformat state for stepping through the machine
-    //then, there's maybe a separate, larger formatting context that gets passed
-    //around internally? Specifically, we want to be able to format a field
-    //while keeping track of what numbering mode we're in and which arguments
-    //have been consumed, if any
-    
-    constexpr auto field_entry = '{';
-    constexpr auto field_exit = '}';
-    auto state = format_state{};
-    size_t mark{};
-
-    auto process_field = [&](field f) {
-        if(state.mode == field::modes::UNKNOWN) {
-            state.mode = f.mode;
-        }
-
-        if(f.mode != state.mode) {            
-            //switching field numbering modes isn't allowed.
-            _format(detail::error{}, std::forward<F>(out), f);
-            return;
-        }
-
-        if(f.mode == field::modes::AUTOMATIC_NUMBERING) {
-            auto arg = args.consume_next();
-            arg.format(std::forward<F>(out), f);
-        } else {                
-            args.args[f.arg_index].format(std::forward<F>(out), f);
-        }
-    };
-
-    for(const auto&& [pos,c] : utl::ranges::enumerate(format)) {
-        switch(state.active) {
-            case format_state::ECHO:
-                if(c == field_entry) {
-                    state.active = format_state::ESCAPED_ENTRY;
-                } else if(c == field_exit) {
-                    state.active = format_state::ESCAPED_EXIT;
-                    continue;
-                } else {
-                    out(c);
-                }
-                break;
-            case format_state::ESCAPED_ENTRY:   
-                if(c == field_entry) {
-                    //escaped for output
-                    out(c);
-                    state.active = format_state::ECHO;
-                } else if(c == field_exit) {
-                    //you are standing in an empty field...
-                    process_field(field{});
-                    state.active = format_state::ECHO;
-                    break;
-                } else {
-                    mark = pos;
-                    state.active = format_state::PROCESS_FIELD;
-                }             
-                break;
-            case format_state::ESCAPED_EXIT:
-                if(c == field_entry) {
-                    state.active = format_state::ESCAPED_ENTRY;
-                } else {
-                    out(c);
-                    state.active = format_state::ECHO;
-                }
-                break;
-            case format_state::PROCESS_FIELD:
-                if(c == '}') {
-                    //FIXME: need to know if formatting the field yielded an error.
-                    auto f = detail::make_field(format.substr(mark, pos - mark), args);
-                    process_field(f);
-                    state.active = format_state::ECHO;
-                }
-                break;
-        }
-    }
+    //FIXME: add is_formattable trait, if constexpr to throw a static assert asap if
+    // a type isn't supported!
+    const auto arg_storage = fmt::detail::wrap_args(std::forward<Args>(args)...);
+    auto arg_view = fmt::detail::erase_args(arg_storage);
+    fmt::vformat(out,format,arg_view);
 }
+
+
+namespace fmt {
+    // constexpr void _format(formattable_as<char> auto arg, output& out, field const& f)
+    // {
+    //     //FIXME: do formatting
+    //     auto options = parse_format_options(f.spec);
+    //     out(arg);
+    //     auto width = options.width - 1;
+    //     while(width--) out(options.fill);
+    // }
+
+    constexpr format_options default_int_options{ 
+        .fill = ' ', 
+        .align = alignment::RIGHT,
+        .sign = format_options::signs::NEGATIVE_ONLY,
+        .width = 0,
+        .presentation = 'd'
+    };
+
+    constexpr void _format(formattable_as<int> auto arg, output& out, field const& f)
+    {
+        auto options = parse_format_options(f.spec, default_int_options);
+        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
+    }
+
+    constexpr void _format(formattable_as<unsigned int> auto arg, output& out, field const& f)
+    {
+        auto options = parse_format_options(f.spec, default_int_options);
+        format_ulong(out, static_cast<unsigned long>(arg), false, get_int_spec_base(options.presentation), options);
+    }
+
+    constexpr void _format(formattable_as<unsigned long> auto arg, output& out, field const& f)
+    {
+        auto options = parse_format_options(f.spec, default_int_options);
+        format_ulong(out, arg, false, get_int_spec_base(options.presentation), options);
+    }
+
+    constexpr void _format(formattable_as<float> auto arg, output& out, field const& f)
+    {
+        utl::maybe_unused(arg, f);
+        out("{:f}");
+    }
+
+    constexpr void _format(utl::string_view arg, output& out, field const& f)
+    {      
+        auto options = parse_format_options(f.spec, format_options{
+            .fill = ' ',
+            .align = alignment::LEFT,
+            .presentation = 's'
+        });
+        fmt::align_pad_out(out, arg, options.fill, options.align, options.width, options.precision);
+    }
+
+    template<size_t N>
+    constexpr void _format(utl::string<N>& arg, output& out, field const& f)
+    {
+        utl::maybe_unused(f);
+        //how do I apply formats on top of formats?
+        format_to(out,"\"{:<{}}\"",N,static_cast<utl::string_view>(arg));
+    }
+
+} //namespace fmt
 
 } //namespace utl

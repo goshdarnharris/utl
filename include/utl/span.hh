@@ -17,15 +17,15 @@ class span {
         return &m_container[index]; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
 public:
-    template <typename U, 
-        typename = utl::enable_if_t<utl::is_same_v<U,T*> ,U>>
-    constexpr span(U container, size_t size) : m_container{container}, m_size{size} {}
+    constexpr span(T* container, size_t size) : m_container{container}, m_size{size} {}
 
     template <size_t N>
     constexpr span(T (&arr)[N]) : m_container{arr}, m_size{N} {} //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
     template <size_t N>
     constexpr span(array<T,N>& arr) : m_container{arr.data()}, m_size{N} {}
+    template <size_t N>
+    constexpr span(array<T,N> const& arr) : m_container{arr.data()}, m_size{N} {}
 
     constexpr T& operator[](size_t index) const
     {

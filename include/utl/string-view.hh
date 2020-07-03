@@ -32,6 +32,15 @@ public:
         return access(idx);
     }
 
+    constexpr char at(size_t idx, char dfault)
+    {
+        if(idx < length()) {
+            return access(idx);
+        } else {
+            return dfault;
+        }
+    }
+
     [[nodiscard]] constexpr const char* begin() const
     {
         return str;

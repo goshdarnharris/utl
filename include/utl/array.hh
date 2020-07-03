@@ -8,6 +8,7 @@ namespace utl {
 
 template <typename T, size_t N>
 struct array {
+    using value_t = T;
     T _storage[N];
 
     constexpr T& operator[](size_t idx) {

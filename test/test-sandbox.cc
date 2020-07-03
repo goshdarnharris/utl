@@ -14,6 +14,11 @@ TEST_GROUP(Sandbox) {
     void teardown(void) {}
 };
 
+template <typename T>
+struct S {
+    static constexpr auto value() { }
+};
+
 constexpr size_t do_it(utl::string_view sv)
 {
     size_t s = sv.size();

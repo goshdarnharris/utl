@@ -23,11 +23,10 @@ class string {
         m_elements[N] = '\0';
     }    
 
-    char_t m_elements[N+1] = {0}; //NOLINT(cppcoreguidelines-avoid-c-arrays)
+    char_t m_elements[N+1]{}; //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
 public:
-    constexpr string() : string{impl_tag{},"",0}
-    {}
+    constexpr string() = default;
     
     constexpr string(const char* str) : string{impl_tag{},str,__builtin_strlen(str)}
     {}
@@ -61,6 +60,15 @@ public:
     constexpr char_t const& operator[](size_t idx) const
     {
         return m_elements[idx];
+    }
+
+    constexpr char_t at(size_t idx, char_t dfault)
+    {
+        if(idx < length()) {
+            return m_elements[idx];
+        } else {
+            return dfault;
+        }
     }
 
     constexpr operator string_view() const
