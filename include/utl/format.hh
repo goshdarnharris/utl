@@ -365,7 +365,7 @@ namespace fmt {
                     }
                     break;
             }
-            if(working_pos < working.size()) {
+            if(base != bases::DECIMAL and working_pos < working.size()) {
                 working[working_pos++] = '0';
             }
         }
@@ -391,7 +391,6 @@ namespace fmt {
         size_t working_pos = 0u;
         size_t digit_pos = 0u;
         
-        // write if precision != 0 and value is != 0
         if(value) {
             do {
                 const auto digit_value = static_cast<unsigned int>(value % static_cast<unsigned int>(base));
@@ -441,13 +440,6 @@ namespace fmt {
                 return bases::DECIMAL;
         }
     }
-
-    // template <typename T>
-    // constexpr void _format(T&&, output&, field const&)
-    // {
-    //     static_assert(not std::is_same_v<T,T>, "to format your own types, implement a _format function: "
-    //         "constexpr void _format(T& arg, utl::output& out, utl::fmt::field const& f)");
-    // }
 
     template <typename T, typename As>
     concept formattable_as = same_as<T,As>;
@@ -666,8 +658,8 @@ namespace fmt {
     }
 
     template <typename T>
-    concept formattable = requires(T&& v, output& o, field& f) {
-        _format(v, o, f);
+    concept formattable = requires(T const& arg, output& out, field& spec) {
+        _format(arg, out, spec);
     };
 } //namespace fmt
 
@@ -715,15 +707,6 @@ constexpr void format_to(fmt::output& out, utl::string_view format, Args&&... ar
 
 
 namespace fmt {
-    // constexpr void _format(formattable_as<char> auto arg, output& out, field const& f)
-    // {
-    //     //FIXME: do formatting
-    //     auto options = parse_format_options(f.spec);
-    //     out(arg);
-    //     auto width = options.width - 1;
-    //     while(width--) out(options.fill);
-    // }
-
     constexpr format_options default_int_options{ 
         .fill = ' ', 
         .align = alignment::RIGHT,
@@ -732,7 +715,19 @@ namespace fmt {
         .presentation = 'd'
     };
 
-    constexpr void _format(formattable_as<int> auto arg, output& out, field const& f)
+        constexpr void _format(formattable_as<int> auto arg, output& out, field const& f)
+    {
+        auto options = parse_format_options(f.spec, default_int_options);
+        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
+    }
+
+    constexpr void _format(formattable_as<long> auto arg, output& out, field const& f)
+    {
+        auto options = parse_format_options(f.spec, default_int_options);
+        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
+    }
+
+    constexpr void _format(formattable_as<long long> auto arg, output& out, field const& f)
     {
         auto options = parse_format_options(f.spec, default_int_options);
         format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
@@ -750,7 +745,29 @@ namespace fmt {
         format_ulong(out, arg, false, get_int_spec_base(options.presentation), options);
     }
 
+    template <typename T>
+    void _format(T* arg, output& out, field const& f)
+    {
+        auto defaults = default_int_options;
+        defaults.alternate_form = true;
+        defaults.presentation = 'x';
+        auto options = parse_format_options(f.spec, defaults);
+        format_ulong(out, reinterpret_cast<unsigned long>(arg), false, get_int_spec_base(options.presentation), options);
+    }
+
     constexpr void _format(formattable_as<float> auto arg, output& out, field const& f)
+    {
+        utl::maybe_unused(arg, f);
+        out("{:f}");
+    }
+
+    constexpr void _format(formattable_as<double> auto arg, output& out, field const& f)
+    {
+        utl::maybe_unused(arg, f);
+        out("{:f}");
+    }
+
+    constexpr void _format(formattable_as<long double> auto arg, output& out, field const& f)
     {
         utl::maybe_unused(arg, f);
         out("{:f}");
@@ -758,7 +775,7 @@ namespace fmt {
 
     constexpr void _format(utl::string_view arg, output& out, field const& f)
     {      
-        auto options = parse_format_options(f.spec, format_options{
+        auto options = parse_format_options(f.spec, {
             .fill = ' ',
             .align = alignment::LEFT,
             .presentation = 's'
@@ -770,8 +787,17 @@ namespace fmt {
     constexpr void _format(utl::string<N>& arg, output& out, field const& f)
     {
         utl::maybe_unused(f);
-        //how do I apply formats on top of formats?
         format_to(out,"\"{:<{}}\"",N,static_cast<utl::string_view>(arg));
+    }
+
+    constexpr void _format(const char* arg, output& out, field const& f)
+    {
+        _format(utl::string_view{arg},out,f);
+    }
+
+    constexpr void _format(formattable_as<char> auto arg, output& out, field const& f)
+    {
+        _format(utl::string_view{&arg,1},out,f);
     }
 
 } //namespace fmt

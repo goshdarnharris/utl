@@ -6,10 +6,17 @@
 
 namespace utl {
 
+namespace detail {
+    struct zero_length_iterator {
+        constexpr bool operator==(zero_length_iterator const&) { return true; }
+        constexpr bool operator!=(zero_length_iterator const&) { return false; }
+    };
+}
+
 template <typename T, size_t N>
 struct array {
     using value_t = T;
-    T _storage[N];
+    T _storage[N]{};
 
     constexpr T& operator[](size_t idx) {
         return _storage[idx];
@@ -31,29 +38,29 @@ struct array {
         return N;
     }
 
-    T* begin() {
+    constexpr T* begin() {
         return &_storage[0];
     }
-    const T* begin() const {
+    constexpr const T* begin() const {
         return &_storage[0];
     }
-    volatile T* begin() volatile {
+    constexpr volatile T* begin() volatile {
         return &_storage[0];
     }
-    const volatile T* begin() const volatile {
+    constexpr const volatile T* begin() const volatile {
         return &_storage[0];
     }
 
-    T* end() {
+    constexpr T* end() {
         return &_storage[N];
     }    
-    const T* end() const {
+    constexpr const T* end() const {
         return &_storage[N];
     }
-    volatile T* end() volatile {
+    constexpr volatile T* end() volatile {
         return &_storage[N];
     }    
-    const volatile T* end() const volatile {
+    constexpr const volatile T* end() const volatile {
         return &_storage[N];
     }
 
@@ -69,6 +76,22 @@ struct array {
     constexpr const volatile T* data(void) const volatile {
         return _storage;
     }
+};
+
+template <typename T>
+struct array<T,0> {
+    using value_t = T;
+    [[nodiscard]] constexpr size_t size() const {
+        return 0;
+    }
+    [[nodiscard]] constexpr size_t size() const volatile {
+        return 0;
+    }
+    constexpr auto begin() const { return detail::zero_length_iterator{}; }
+    constexpr auto end() const { return detail::zero_length_iterator{}; }
+    constexpr auto rbegin() const { return detail::zero_length_iterator{}; }
+    constexpr auto rend() const { return detail::zero_length_iterator{}; }
+    constexpr T* data() const { return nullptr; }
 };
 
 // template <typename T, typename... Args>

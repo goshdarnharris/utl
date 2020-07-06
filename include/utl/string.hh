@@ -23,12 +23,20 @@ class string {
         m_elements[N] = '\0';
     }    
 
+    [[nodiscard]] constexpr string_view to_sv() const
+    {
+        return {data(),length()};
+    }
+
     char_t m_elements[N+1]{}; //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
 public:
     constexpr string() = default;
     
     constexpr string(const char* str) : string{impl_tag{},str,__builtin_strlen(str)}
+    {}
+
+    explicit constexpr string(string_view view) : string{impl_tag{},view.data(),view.length()}
     {}
     
     template <size_t M>
@@ -60,6 +68,23 @@ public:
     constexpr char_t const& operator[](size_t idx) const
     {
         return m_elements[idx];
+    }
+
+    template <size_t M>
+    constexpr bool operator==(string<M> const& other) const
+    {
+        return to_sv() == other.to_sv();
+    }
+
+    // template <size_t M>
+    // constexpr bool operator==(const string<M>&& other) const
+    // {
+    //     return to_sv() == other.to_sv();
+    // }
+
+    constexpr bool operator==(string_view const& other) const
+    {
+        return to_sv() == other;
     }
 
     constexpr char_t at(size_t idx, char_t dfault)

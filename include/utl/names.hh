@@ -1,6 +1,6 @@
 #pragma once
 #include <utl/string-view.hh>
-#include <utl/logger.hh>
+#include <utl/format.hh>
 
 namespace utl {
 
@@ -138,6 +138,16 @@ constexpr bool is_valid_enum_value(E&& v)
 {
     constexpr auto name = get_enum_name(v);
     return detail::enums::is_numeric_char(name.data()[0]);
+}
+
+namespace fmt {
+template <typename E>
+    requires is_enum_v<remove_reference_t<E>>
+constexpr void _format(E const& arg, fmt::output& out, fmt::field const& f)
+{
+    _format(get_enum_name(arg),out,f);
+}
+
 }
 
 } //namespace utl

@@ -32,6 +32,11 @@ public:
         return access(idx);
     }
 
+    [[nodiscard]] constexpr bool operator==(string_view const& other) const
+    {
+        return compare(other);
+    }
+
     constexpr char at(size_t idx, char dfault)
     {
         if(idx < length()) {
