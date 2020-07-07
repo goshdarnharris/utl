@@ -17,7 +17,7 @@ class string {
 
     struct impl_tag{};
 
-    constexpr string(impl_tag, const char* str, size_t length = N)
+    constexpr string(impl_tag, const char_t* str, size_t length = N)
     {
         __builtin_memcpy(m_elements, str, length <= N ? length : N);
         m_elements[N] = '\0';
@@ -33,7 +33,7 @@ class string {
 public:
     constexpr string() = default;
     
-    constexpr string(const char* str) : string{impl_tag{},str,__builtin_strlen(str)}
+    constexpr string(const char_t* str) : string{impl_tag{},str,__builtin_strlen(str)}
     {}
 
     explicit constexpr string(string_view view) : string{impl_tag{},view.data(),view.length()}
@@ -44,12 +44,17 @@ public:
     constexpr string(string<M>& other) : string{impl_tag{},other.data(),N} 
     {}
 
-    [[nodiscard]] constexpr const char* data() const
+    constexpr string(int count, char_t ch) : string{}
+    {
+        __builtin_memset(m_elements, count, static_cast<unsigned long>(ch));
+    }
+
+    [[nodiscard]] constexpr const char_t* data() const
     {
         return m_elements;
     }
 
-    [[nodiscard]] constexpr const char* c_str() const
+    [[nodiscard]] constexpr const char_t* c_str() const
     {
         return data();
     }
@@ -76,16 +81,16 @@ public:
         return to_sv() == other.to_sv();
     }
 
-    // template <size_t M>
-    // constexpr bool operator==(const string<M>&& other) const
-    // {
-    //     return to_sv() == other.to_sv();
-    // }
-
     constexpr bool operator==(string_view const& other) const
     {
         return to_sv() == other;
     }
+
+    // template <size_t M>
+    // constexpr auto operator+(string<M> const& other) const
+    // {
+    //     string<N+M> res
+    // }
 
     constexpr char_t at(size_t idx, char_t dfault)
     {

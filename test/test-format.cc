@@ -10,6 +10,8 @@
 #include <utl/format.hh>
 #include <utl/string.hh>
 #include "test-support.hh"
+#include <stdio.h>
+#include <limits>
 
 TEST_GROUP(Format) {};
 
@@ -43,13 +45,6 @@ TEST(Format,Alignment)
 {
     auto test = utl::format<60>("{:_^16,}", 1234567);
     CHECK_EQUAL("___1,234,567____"_sv, test);
-}
-
-TEST(Format,String)
-{
-    utl::string<10> str = "hello";
-    auto test = utl::format<60>("{}", str);
-    CHECK_EQUAL("\"hello     \""_sv, test);
 }
 
 
@@ -143,7 +138,7 @@ TEST(Format,String)
 // // Workaround a bug in formatting long double in MinGW.
 // void std_format(long double value, std::string& result) {
 //   char buffer[100];
-//   safe_sprintf(buffer, "%Lg", value);
+//   snprintf(buffer, BUFFER_SIZE, "%Lg", value);
 //   result = buffer;
 // }
 // void std_format(long double value, std::wstring& result) {
@@ -828,283 +823,283 @@ TEST(Format, HashFlag) {
 //                    "format specifier requires numeric argument");
 }
 
-// TEST(Format, ZeroFlag) {
-//   CHECK_EQUAL("42"_sv, format("{0:0}", 42));
-//   CHECK_EQUAL("-0042"_sv, format("{0:05}", -42));
-//   CHECK_EQUAL("00042"_sv, format("{0:05}", 42u));
-//   CHECK_EQUAL("-0042"_sv, format("{0:05}", -42l));
-//   CHECK_EQUAL("00042"_sv, format("{0:05}", 42ul));
-//   CHECK_EQUAL("-0042"_sv, format("{0:05}", -42ll));
-//   CHECK_EQUAL("00042"_sv, format("{0:05}", 42ull));
-//   CHECK_EQUAL("-0042.0"_sv, format("{0:07}", -42.0));
-//   CHECK_EQUAL("-0042.0"_sv, format("{0:07}", -42.0l));
-//   EXPECT_THROW_MSG(format("{0:0", 'c'), format_error,
-//                    "missing '}' in format string");
-//   EXPECT_THROW_MSG(format("{0:05}", 'c'), format_error,
-//                    "invalid format specifier for char");
-//   EXPECT_THROW_MSG(format("{0:05}", "abc"), format_error,
-//                    "format specifier requires numeric argument");
-//   EXPECT_THROW_MSG(format("{0:05}", reinterpret_cast<void*>(0x42)),
-//                    format_error, "format specifier requires numeric argument");
-// }
+TEST(Format, ZeroFlag) {
+  CHECK_EQUAL("42"_sv, utl::format<20>("{0:0}", 42));
+  CHECK_EQUAL("-0042"_sv, utl::format<20>("{0:05}", -42));
+  CHECK_EQUAL("00042"_sv, utl::format<20>("{0:05}", 42u));
+  CHECK_EQUAL("-0042"_sv, utl::format<20>("{0:05}", -42l));
+  CHECK_EQUAL("00042"_sv, utl::format<20>("{0:05}", 42ul));
+  CHECK_EQUAL("-0042"_sv, utl::format<20>("{0:05}", -42ll));
+  // CHECK_EQUAL("00042"_sv, utl::format<20>("{0:05}", 42ull));
+  // CHECK_EQUAL("-0042.0"_sv, utl::format<20>("{0:07}", -42.0));
+  // CHECK_EQUAL("-0042.0"_sv, utl::format<20>("{0:07}", -42.0l));
+  // EXPECT_THROW_MSG(utl::format<20>("{0:0", 'c'), format_error,
+  //                  "missing '}' in format string");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:05}", 'c'), format_error,
+  //                  "invalid format specifier for char");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:05}", "abc"), format_error,
+  //                  "format specifier requires numeric argument");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:05}", reinterpret_cast<void*>(0x42)),
+  //                  format_error, "format specifier requires numeric argument");
+}
 
-// TEST(Format, Width) {
-//   char format_str[BUFFER_SIZE];
-//   safe_sprintf(format_str, "{0:%u", UINT_MAX);
-//   increment(format_str + 3);
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   size_t size = std::strlen(format_str);
-//   format_str[size] = '}';
-//   format_str[size + 1] = 0;
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
+TEST(Format, Width) {
+  // char format_str[BUFFER_SIZE];
+  // safe_sprintf(format_str, "{0:%u", UINT_MAX);
+  // increment(format_str + 3);
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  // size_t size = std::strlen(format_str);
+  // format_str[size] = '}';
+  // format_str[size + 1] = 0;
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
 
-//   safe_sprintf(format_str, "{0:%u", INT_MAX + 1u);
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   safe_sprintf(format_str, "{0:%u}", INT_MAX + 1u);
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   CHECK_EQUAL(" -42"_sv, format("{0:4}", -42));
-//   CHECK_EQUAL("   42"_sv, format("{0:5}", 42u));
-//   CHECK_EQUAL("   -42"_sv, format("{0:6}", -42l));
-//   CHECK_EQUAL("     42"_sv, format("{0:7}", 42ul));
-//   CHECK_EQUAL("   -42"_sv, format("{0:6}", -42ll));
-//   CHECK_EQUAL("     42"_sv, format("{0:7}", 42ull));
-//   CHECK_EQUAL("   -1.23"_sv, format("{0:8}", -1.23));
-//   CHECK_EQUAL("    -1.23"_sv, format("{0:9}", -1.23l));
-//   CHECK_EQUAL("    0xcafe"_sv, format("{0:10}", reinterpret_cast<void*>(0xcafe)));
-//   CHECK_EQUAL("x          "_sv, format("{0:11}", 'x'));
-//   CHECK_EQUAL("str         "_sv, format("{0:12}", "str"));
-//   CHECK_EQUAL(utl::format("{:*^5}", "🤡"), "**🤡**");
-// }
+  // safe_sprintf(format_str, "{0:%u", INT_MAX + 1u);
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  // safe_sprintf(format_str, "{0:%u}", INT_MAX + 1u);
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  CHECK_EQUAL(" -42"_sv, utl::format<20>("{0:4}", -42));
+  CHECK_EQUAL("   42"_sv, utl::format<20>("{0:5}", 42u));
+  CHECK_EQUAL("   -42"_sv, utl::format<20>("{0:6}", -42l));
+  CHECK_EQUAL("     42"_sv, utl::format<20>("{0:7}", 42ul));
+  CHECK_EQUAL("   -42"_sv, utl::format<20>("{0:6}", -42ll));
+  // CHECK_EQUAL("     42"_sv, utl::format<20>("{0:7}", 42ull));
+  // CHECK_EQUAL("   -1.23"_sv, utl::format<20>("{0:8}", -1.23));
+  // CHECK_EQUAL("    -1.23"_sv, utl::format<20>("{0:9}", -1.23l));
+  CHECK_EQUAL("    0xcafe"_sv, utl::format<20>("{0:10}", reinterpret_cast<void*>(0xcafe)));
+  CHECK_EQUAL("x          "_sv, utl::format<20>("{0:11}", 'x'));
+  CHECK_EQUAL("str         "_sv, utl::format<20>("{0:12}", "str"));
+  // CHECK_EQUAL("**🤡**"_sv, utl::format<20>("{:*^5}", "🤡"));
+}
 
-// template <typename T> inline T const_check(T value) { return value; }
+template <typename T> inline T const_check(T value) { return value; }
 
-// TEST(Format, RuntimeWidth) {
-//   char format_str[BUFFER_SIZE];
-//   safe_sprintf(format_str, "{0:{%u", UINT_MAX);
-//   increment(format_str + 4);
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   size_t size = std::strlen(format_str);
-//   format_str[size] = '}';
-//   format_str[size + 1] = 0;
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   format_str[size + 1] = '}';
-//   format_str[size + 2] = 0;
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
+TEST(Format, RuntimeWidth) {
+  // char format_str[BUFFER_SIZE];
+  // safe_sprintf(format_str, "{0:{%u", UINT_MAX);
+  // increment(format_str + 4);
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  // size_t size = std::strlen(format_str);
+  // format_str[size] = '}';
+  // format_str[size + 1] = 0;
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  // format_str[size + 1] = '}';
+  // format_str[size + 2] = 0;
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
 
-//   EXPECT_THROW_MSG(format("{0:{", 0), format_error, "invalid format string");
-//   EXPECT_THROW_MSG(format("{0:{}", 0), format_error,
-//                    "cannot switch from manual to automatic argument indexing");
-//   EXPECT_THROW_MSG(format("{0:{?}}", 0), format_error, "invalid format string");
-//   EXPECT_THROW_MSG(format("{0:{1}}", 0), format_error, "argument not found");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{", 0), format_error, "invalid format string");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{}", 0), format_error,
+                  //  "cannot switch from manual to automatic argument indexing");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{?}}", 0), format_error, "invalid format string");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{1}}", 0), format_error, "argument not found");
 
-//   EXPECT_THROW_MSG(format("{0:{0:}}", 0), format_error,
-//                    "invalid format string");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{0:}}", 0), format_error,
+                  //  "invalid format string");
 
-//   EXPECT_THROW_MSG(format("{0:{1}}", 0, -1), format_error, "negative width");
-//   EXPECT_THROW_MSG(format("{0:{1}}", 0, (INT_MAX + 1u)), format_error,
-//                    "number is too big");
-//   EXPECT_THROW_MSG(format("{0:{1}}", 0, -1l), format_error, "negative width");
-//   if (const_check(sizeof(long) > sizeof(int))) {
-//     long value = INT_MAX;
-//     EXPECT_THROW_MSG(format("{0:{1}}", 0, (value + 1)), format_error,
-//                      "number is too big");
-//   }
-//   EXPECT_THROW_MSG(format("{0:{1}}", 0, (INT_MAX + 1ul)), format_error,
-//                    "number is too big");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{1}}", 0, -1), format_error, "negative width");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{1}}", 0, (INT_MAX + 1u)), format_error,
+  //                  "number is too big");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{1}}", 0, -1l), format_error, "negative width");
+  // if (const_check(sizeof(long) > sizeof(int))) {
+  //   long value = INT_MAX;
+  //   EXPECT_THROW_MSG(utl::format<20>("{0:{1}}", 0, (value + 1)), format_error,
+  //                    "number is too big");
+  // }
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{1}}", 0, (INT_MAX + 1ul)), format_error,
+  //                  "number is too big");
 
-//   EXPECT_THROW_MSG(format("{0:{1}}", 0, '0'), format_error,
-//                    "width is not integer");
-//   EXPECT_THROW_MSG(format("{0:{1}}", 0, 0.0), format_error,
-//                    "width is not integer");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{1}}", 0, '0'), format_error,
+  //                  "width is not integer");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:{1}}", 0, 0.0), format_error,
+  //                  "width is not integer");
 
-//   CHECK_EQUAL(" -42"_sv, format("{0:{1}}", -42, 4));
-//   CHECK_EQUAL("   42"_sv, format("{0:{1}}", 42u, 5));
-//   CHECK_EQUAL("   -42"_sv, format("{0:{1}}", -42l, 6));
-//   CHECK_EQUAL("     42"_sv, format("{0:{1}}", 42ul, 7));
-//   CHECK_EQUAL("   -42"_sv, format("{0:{1}}", -42ll, 6));
-//   CHECK_EQUAL("     42"_sv, format("{0:{1}}", 42ull, 7));
-//   CHECK_EQUAL("   -1.23"_sv, format("{0:{1}}", -1.23, 8));
-//   CHECK_EQUAL("    -1.23"_sv, format("{0:{1}}", -1.23l, 9));
-//   CHECK_EQUAL("    0xcafe",
-//             format("{0:{1}}", reinterpret_cast<void*>(0xcafe), 10));
-//   CHECK_EQUAL("x          "_sv, format("{0:{1}}", 'x', 11));
-//   CHECK_EQUAL("str         "_sv, format("{0:{1}}", "str", 12));
-// }
+  CHECK_EQUAL(" -42"_sv, utl::format<20>("{0:{1}}", -42, 4));
+  CHECK_EQUAL("   42"_sv, utl::format<20>("{0:{1}}", 42u, 5));
+  CHECK_EQUAL("   -42"_sv, utl::format<20>("{0:{1}}", -42l, 6));
+  CHECK_EQUAL("     42"_sv, utl::format<20>("{0:{1}}", 42ul, 7));
+  CHECK_EQUAL("   -42"_sv, utl::format<20>("{0:{1}}", -42ll, 6));
+  // CHECK_EQUAL("     42"_sv, utl::format<20>("{0:{1}}", 42ull, 7));
+  // CHECK_EQUAL("   -1.23"_sv, utl::format<20>("{0:{1}}", -1.23, 8));
+  // CHECK_EQUAL("    -1.23"_sv, utl::format<20>("{0:{1}}", -1.23l, 9));
+  CHECK_EQUAL("    0xcafe"_sv,
+            utl::format<20>("{0:{1}}", reinterpret_cast<void*>(0xcafe), 10));
+  CHECK_EQUAL("x          "_sv, utl::format<20>("{0:{1}}", 'x', 11));
+  CHECK_EQUAL("str         "_sv, utl::format<20>("{0:{1}}", "str", 12));
+}
 
-// TEST(Format, Precision) {
-//   char format_str[BUFFER_SIZE];
-//   safe_sprintf(format_str, "{0:.%u", UINT_MAX);
-//   increment(format_str + 4);
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   size_t size = std::strlen(format_str);
-//   format_str[size] = '}';
-//   format_str[size + 1] = 0;
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
+TEST(Format, Precision) {
+  // char format_str[BUFFER_SIZE];
+  // safe_sprintf(format_str, "{0:.%u", UINT_MAX);
+  // increment(format_str + 4);
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  // size_t size = std::strlen(format_str);
+  // format_str[size] = '}';
+  // format_str[size + 1] = 0;
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
 
-//   safe_sprintf(format_str, "{0:.%u", INT_MAX + 1u);
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   safe_sprintf(format_str, "{0:.%u}", INT_MAX + 1u);
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
+  // safe_sprintf(format_str, "{0:.%u", INT_MAX + 1u);
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  // safe_sprintf(format_str, "{0:.%u}", INT_MAX + 1u);
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
 
-//   EXPECT_THROW_MSG(format("{0:.", 0), format_error,
-//                    "missing precision specifier");
-//   EXPECT_THROW_MSG(format("{0:.}", 0), format_error,
-//                    "missing precision specifier");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.", 0), format_error,
+  //                  "missing precision specifier");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.}", 0), format_error,
+  //                  "missing precision specifier");
 
-//   EXPECT_THROW_MSG(format("{0:.2", 0), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2}", 42), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2f}", 42), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2}", 42u), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2f}", 42u), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2}", 42l), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2f}", 42l), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2}", 42ul), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2f}", 42ul), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2}", 42ll), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2f}", 42ll), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2}", 42ull), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2f}", 42ull), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:3.0}", 'x'), format_error,
-//                    "precision not allowed for this argument type");
-//   CHECK_EQUAL("1.2"_sv, format("{0:.2}", 1.2345));
-//   CHECK_EQUAL("1.2"_sv, format("{0:.2}", 1.2345l));
-//   CHECK_EQUAL("1.2e+56"_sv, format("{:.2}", 1.234e56));
-//   CHECK_EQUAL("1e+00"_sv, format("{:.0e}", 1.0L));
-//   CHECK_EQUAL("  0.0e+00"_sv, format("{:9.1e}", 0.0));
-//   CHECK_EQUAL(
-//       "4.9406564584124654417656879286822137236505980261432476442558568250067550"
-//       "727020875186529983636163599237979656469544571773092665671035593979639877"
-//       "479601078187812630071319031140452784581716784898210368871863605699873072"
-//       "305000638740915356498438731247339727316961514003171538539807412623856559"
-//       "117102665855668676818703956031062493194527159149245532930545654440112748"
-//       "012970999954193198940908041656332452475714786901472678015935523861155013"
-//       "480352649347201937902681071074917033322268447533357208324319361e-324",
-//       format("{:.494}", 4.9406564584124654E-324));
-//   CHECK_EQUAL(
-//       "-0X1.41FE3FFE71C9E000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000000000000000000000000"
-//       "000000000000000000000000000000000000000000000000000P+127",
-//       format("{:.838A}", -2.14001164E+38));
-//   CHECK_EQUAL("123."_sv, format("{:#.0f}", 123.0));
-//   CHECK_EQUAL("1.23"_sv, format("{:.02f}", 1.234));
-//   CHECK_EQUAL("0.001"_sv, format("{:.1g}", 0.001));
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2", 0), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2}", 42), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2f}", 42), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2}", 42u), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2f}", 42u), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2}", 42l), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2f}", 42l), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2}", 42ul), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2f}", 42ul), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2}", 42ll), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2f}", 42ll), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2}", 42ull), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2f}", 42ull), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:3.0}", 'x'), format_error,
+  //                  "precision not allowed for this argument type");
+  // CHECK_EQUAL("1.2"_sv, utl::format<20>("{0:.2}", 1.2345));
+  // CHECK_EQUAL("1.2"_sv, utl::format<20>("{0:.2}", 1.2345l));
+  // CHECK_EQUAL("1.2e+56"_sv, utl::format<20>("{:.2}", 1.234e56));
+  // CHECK_EQUAL("1e+00"_sv, utl::format<20>("{:.0e}", 1.0L));
+  // CHECK_EQUAL("  0.0e+00"_sv, utl::format<20>("{:9.1e}", 0.0));
+  // CHECK_EQUAL(
+  //     "4.9406564584124654417656879286822137236505980261432476442558568250067550"
+  //     "727020875186529983636163599237979656469544571773092665671035593979639877"
+  //     "479601078187812630071319031140452784581716784898210368871863605699873072"
+  //     "305000638740915356498438731247339727316961514003171538539807412623856559"
+  //     "117102665855668676818703956031062493194527159149245532930545654440112748"
+  //     "012970999954193198940908041656332452475714786901472678015935523861155013"
+  //     "480352649347201937902681071074917033322268447533357208324319361e-324",
+  //     utl::format<550>("{:.494}", 4.9406564584124654E-324));
+  // CHECK_EQUAL(
+  //     "-0X1.41FE3FFE71C9E000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000000000000000000000000"
+  //     "000000000000000000000000000000000000000000000000000P+127",
+  //     utl::format<20>("{:.838A}", -2.14001164E+38));
+  // CHECK_EQUAL("123."_sv, utl::format<20>("{:#.0f}", 123.0));
+  // CHECK_EQUAL("1.23"_sv, utl::format<20>("{:.02f}", 1.234));
+  // CHECK_EQUAL("0.001"_sv, utl::format<20>("{:.1g}", 0.001));
 
-//   EXPECT_THROW_MSG(format("{0:.2}", reinterpret_cast<void*>(0xcafe)),
-//                    format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.2f}", reinterpret_cast<void*>(0xcafe)),
-//                    format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{:.{}e}", 42.0, utl::detail::max_value<int>()),
-//                    format_error, "number is too big");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2}", reinterpret_cast<void*>(0xcafe)),
+  //                  format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.2f}", reinterpret_cast<void*>(0xcafe)),
+  //                  format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{:.{}e}", 42.0, utl::detail::max_value<int>()),
+  //                  format_error, "number is too big");
 
-//   CHECK_EQUAL("st"_sv, format("{0:.2}", "str"));
-// }
+  CHECK_EQUAL("st"_sv, utl::format<20>("{0:.2}", "str"));
+}
 
-// TEST(Format, RuntimePrecision) {
-//   char format_str[BUFFER_SIZE];
-//   safe_sprintf(format_str, "{0:.{%u", UINT_MAX);
-//   increment(format_str + 5);
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   size_t size = std::strlen(format_str);
-//   format_str[size] = '}';
-//   format_str[size + 1] = 0;
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
-//   format_str[size + 1] = '}';
-//   format_str[size + 2] = 0;
-//   EXPECT_THROW_MSG(format(format_str, 0), format_error, "number is too big");
+TEST(Format, RuntimePrecision) {
+  // char format_str[BUFFER_SIZE];
+  // safe_sprintf(format_str, "{0:.{%u", UINT_MAX);
+  // increment(format_str + 5);
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  // size_t size = std::strlen(format_str);
+  // format_str[size] = '}';
+  // format_str[size + 1] = 0;
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
+  // format_str[size + 1] = '}';
+  // format_str[size + 2] = 0;
+  // EXPECT_THROW_MSG(utl::format<20>(format_str, 0), format_error, "number is too big");
 
-//   EXPECT_THROW_MSG(format("{0:.{", 0), format_error, "invalid format string");
-//   EXPECT_THROW_MSG(format("{0:.{}", 0), format_error,
-//                    "cannot switch from manual to automatic argument indexing");
-//   EXPECT_THROW_MSG(format("{0:.{?}}", 0), format_error,
-//                    "invalid format string");
-//   EXPECT_THROW_MSG(format("{0:.{1}", 0, 0), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 0), format_error, "argument not found");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{", 0), format_error, "invalid format string");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{}", 0), format_error,
+  //                  "cannot switch from manual to automatic argument indexing");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{?}}", 0), format_error,
+  //                  "invalid format string");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}", 0, 0), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 0), format_error, "argument not found");
 
-//   EXPECT_THROW_MSG(format("{0:.{0:}}", 0), format_error,
-//                    "invalid format string");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{0:}}", 0), format_error,
+  //                  "invalid format string");
 
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 0, -1), format_error,
-//                    "negative precision");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 0, (INT_MAX + 1u)), format_error,
-//                    "number is too big");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 0, -1l), format_error,
-//                    "negative precision");
-//   if (const_check(sizeof(long) > sizeof(int))) {
-//     long value = INT_MAX;
-//     EXPECT_THROW_MSG(format("{0:.{1}}", 0, (value + 1)), format_error,
-//                      "number is too big");
-//   }
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 0, (INT_MAX + 1ul)), format_error,
-//                    "number is too big");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 0, -1), format_error,
+  //                  "negative precision");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 0, (INT_MAX + 1u)), format_error,
+  //                  "number is too big");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 0, -1l), format_error,
+  //                  "negative precision");
+  // if (const_check(sizeof(long) > sizeof(int))) {
+  //   long value = INT_MAX;
+  //   EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 0, (value + 1)), format_error,
+  //                    "number is too big");
+  // }
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 0, (INT_MAX + 1ul)), format_error,
+  //                  "number is too big");
 
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 0, '0'), format_error,
-//                    "precision is not integer");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 0, 0.0), format_error,
-//                    "precision is not integer");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 0, '0'), format_error,
+  //                  "precision is not integer");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 0, 0.0), format_error,
+  //                  "precision is not integer");
 
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 42, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}f}", 42, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 42u, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}f}", 42u, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 42l, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}f}", 42l, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 42ul, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}f}", 42ul, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 42ll, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}f}", 42ll, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}}", 42ull, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}f}", 42ull, 2), format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:3.{1}}", 'x', 0), format_error,
-//                    "precision not allowed for this argument type");
-//   CHECK_EQUAL("1.2"_sv, format("{0:.{1}}", 1.2345, 2));
-//   CHECK_EQUAL("1.2"_sv, format("{1:.{0}}", 2, 1.2345l));
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 42, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}f}", 42, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 42u, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}f}", 42u, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 42l, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}f}", 42l, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 42ul, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}f}", 42ul, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 42ll, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}f}", 42ll, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", 42ull, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}f}", 42ull, 2), format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:3.{1}}", 'x', 0), format_error,
+  //                  "precision not allowed for this argument type");
+  // CHECK_EQUAL("1.2"_sv, utl::format<20>("{0:.{1}}", 1.2345, 2));
+  // CHECK_EQUAL("1.2"_sv, utl::format<20>("{1:.{0}}", 2, 1.2345l));
 
-//   EXPECT_THROW_MSG(format("{0:.{1}}", reinterpret_cast<void*>(0xcafe), 2),
-//                    format_error,
-//                    "precision not allowed for this argument type");
-//   EXPECT_THROW_MSG(format("{0:.{1}f}", reinterpret_cast<void*>(0xcafe), 2),
-//                    format_error,
-//                    "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}}", reinterpret_cast<void*>(0xcafe), 2),
+  //                  format_error,
+  //                  "precision not allowed for this argument type");
+  // EXPECT_THROW_MSG(utl::format<20>("{0:.{1}f}", reinterpret_cast<void*>(0xcafe), 2),
+  //                  format_error,
+  //                  "precision not allowed for this argument type");
 
-//   CHECK_EQUAL("st"_sv, format("{0:.{1}}", "str", 2));
-// }
+  CHECK_EQUAL("st"_sv, utl::format<20>("{0:.{1}}", "str", 2));
+}
 
 // template <typename T>
 // void check_unknown_types(const T& value, const char* types, const char*) {
@@ -1120,39 +1115,39 @@ TEST(Format, HashFlag) {
 //   }
 // }
 
-// TEST(Format, FormatBool) {
-//   CHECK_EQUAL("true"_sv, format("{}", true));
-//   CHECK_EQUAL("false"_sv, format("{}", false));
-//   CHECK_EQUAL("1"_sv, format("{:d}", true));
-//   CHECK_EQUAL("true "_sv, format("{:5}", true));
-//   CHECK_EQUAL(L"true"_sv, format(L"{}", true));
-// }
+TEST(Format, FormatBool) {
+  CHECK_EQUAL("true"_sv, utl::format<10>("{}", true));
+  CHECK_EQUAL("false"_sv, utl::format<10>("{}", false));
+  CHECK_EQUAL("1"_sv, utl::format<10>("{:d}", true));
+  CHECK_EQUAL("true "_sv, utl::format<10>("{:5}", true));
+  // CHECK_EQUAL(L"true"_sv, utl::format<10>(L"{}", true));
+}
 
-// TEST(Format, FormatShort) {
-//   short s = 42;
-//   CHECK_EQUAL("42"_sv, format("{0:d}", s));
-//   unsigned short us = 42;
-//   CHECK_EQUAL("42"_sv, format("{0:d}", us));
-// }
+TEST(Format, FormatShort) {
+  short s = 42;
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0:d}", s));
+  unsigned short us = 42;
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0:d}", us));
+}
 
-// TEST(Format, FormatInt) {
-//   EXPECT_THROW_MSG(format("{0:v", 42), format_error,
-//                    "missing '}' in format string");
-//   check_unknown_types(42, "bBdoxXnLc", "integer");
-//   CHECK_EQUAL("x"_sv, format("{:c}", static_cast<int>('x')));
-// }
+TEST(Format, FormatInt) {
+  // EXPECT_THROW_MSG(utl::format<10>("{0:v", 42), format_error,
+  //                  "missing '}' in format string");
+  // check_unknown_types(42, "bBdoxXnLc", "integer");
+  CHECK_EQUAL("x"_sv, utl::format<10>("{:c}", static_cast<int>('x')));
+}
 
-// TEST(Format, FormatBin) {
-//   CHECK_EQUAL("0"_sv, format("{0:b}", 0));
-//   CHECK_EQUAL("101010"_sv, format("{0:b}", 42));
-//   CHECK_EQUAL("101010"_sv, format("{0:b}", 42u));
-//   CHECK_EQUAL("-101010"_sv, format("{0:b}", -42));
-//   CHECK_EQUAL("11000000111001"_sv, format("{0:b}", 12345));
-//   CHECK_EQUAL("10010001101000101011001111000"_sv, format("{0:b}", 0x12345678));
-//   CHECK_EQUAL("10010000101010111100110111101111"_sv, format("{0:b}", 0x90ABCDEF));
-//   CHECK_EQUAL("11111111111111111111111111111111",
-//             format("{0:b}", max_value<uint32_t>()));
-// }
+TEST(Format, FormatBin) {
+  CHECK_EQUAL("0"_sv, utl::format<10>("{0:b}", 0));
+  CHECK_EQUAL("101010"_sv, utl::format<10>("{0:b}", 42));
+  CHECK_EQUAL("101010"_sv, utl::format<10>("{0:b}", 42u));
+  CHECK_EQUAL("-101010"_sv, utl::format<10>("{0:b}", -42));
+  CHECK_EQUAL("11000000111001"_sv, utl::format<20>("{0:b}", 12345));
+  CHECK_EQUAL("10010001101000101011001111000"_sv, utl::format<50>("{0:b}", 0x12345678));
+  CHECK_EQUAL("10010000101010111100110111101111"_sv, utl::format<50>("{0:b}", 0x90ABCDEF));
+  CHECK_EQUAL("11111111111111111111111111111111"_sv,
+            utl::format<50>("{0:b}", std::numeric_limits<uint32_t>::max()));
+}
 
 // #if FMT_USE_INT128
 // constexpr auto int128_max = static_cast<__int128_t>(
@@ -1162,297 +1157,303 @@ TEST(Format, HashFlag) {
 // constexpr auto uint128_max = ~static_cast<__uint128_t>(0);
 // #endif
 
-// TEST(Format, FormatDec) {
-//   CHECK_EQUAL("0"_sv, format("{0}", 0));
-//   CHECK_EQUAL("42"_sv, format("{0}", 42));
-//   CHECK_EQUAL("42"_sv, format("{0:d}", 42));
-//   CHECK_EQUAL("42"_sv, format("{0}", 42u));
-//   CHECK_EQUAL("-42"_sv, format("{0}", -42));
-//   CHECK_EQUAL("12345"_sv, format("{0}", 12345));
-//   CHECK_EQUAL("67890"_sv, format("{0}", 67890));
+static constexpr size_t BUFFER_SIZE = 100;
+
+TEST(Format, FormatDec) {
+  CHECK_EQUAL("0"_sv, utl::format<10>("{0}", 0));
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0}", 42));
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0:d}", 42));
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0}", 42u));
+  CHECK_EQUAL("-42"_sv, utl::format<10>("{0}", -42));
+  CHECK_EQUAL("12345"_sv, utl::format<10>("{0}", 12345));
+  CHECK_EQUAL("67890"_sv, utl::format<10>("{0}", 67890));
 // #if FMT_USE_INT128
-//   CHECK_EQUAL("0"_sv, format("{0}", static_cast<__int128_t>(0)));
-//   CHECK_EQUAL("0"_sv, format("{0}", static_cast<__uint128_t>(0)));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{0}", static_cast<__int128_t>(0)));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{0}", static_cast<__uint128_t>(0)));
 //   CHECK_EQUAL("9223372036854775808",
-//             format("{0}", static_cast<__int128_t>(INT64_MAX) + 1));
+//             utl::format<10>("{0}", static_cast<__int128_t>(INT64_MAX) + 1));
 //   CHECK_EQUAL("-9223372036854775809",
-//             format("{0}", static_cast<__int128_t>(INT64_MIN) - 1));
+//             utl::format<10>("{0}", static_cast<__int128_t>(INT64_MIN) - 1));
 //   CHECK_EQUAL("18446744073709551616",
-//             format("{0}", static_cast<__int128_t>(UINT64_MAX) + 1));
+//             utl::format<10>("{0}", static_cast<__int128_t>(UINT64_MAX) + 1));
 //   CHECK_EQUAL("170141183460469231731687303715884105727",
-//             format("{0}", int128_max));
+//             utl::format<10>("{0}", int128_max));
 //   CHECK_EQUAL("-170141183460469231731687303715884105728",
-//             format("{0}", int128_min));
+//             utl::format<10>("{0}", int128_min));
 //   CHECK_EQUAL("340282366920938463463374607431768211455",
-//             format("{0}", uint128_max));
+//             utl::format<10>("{0}", uint128_max));
 // #endif
 
-//   char buffer[BUFFER_SIZE];
-//   safe_sprintf(buffer, "%d", INT_MIN);
-//   CHECK_EQUAL(buffer, format("{0}", INT_MIN));
-//   safe_sprintf(buffer, "%d", INT_MAX);
-//   CHECK_EQUAL(buffer, format("{0}", INT_MAX));
-//   safe_sprintf(buffer, "%u", UINT_MAX);
-//   CHECK_EQUAL(buffer, format("{0}", UINT_MAX));
-//   safe_sprintf(buffer, "%ld", 0 - static_cast<unsigned long>(LONG_MIN));
-//   CHECK_EQUAL(buffer, format("{0}", LONG_MIN));
-//   safe_sprintf(buffer, "%ld", LONG_MAX);
-//   CHECK_EQUAL(buffer, format("{0}", LONG_MAX));
-//   safe_sprintf(buffer, "%lu", ULONG_MAX);
-//   CHECK_EQUAL(buffer, format("{0}", ULONG_MAX));
-// }
+  char buffer[BUFFER_SIZE]{};
+  snprintf(buffer, BUFFER_SIZE, "%d", INT_MIN);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<20>("{0}", INT_MIN));
+  snprintf(buffer, BUFFER_SIZE, "%d", INT_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<20>("{0}", INT_MAX));
+  snprintf(buffer, BUFFER_SIZE, "%u", UINT_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<20>("{0}", UINT_MAX));
+  snprintf(buffer, BUFFER_SIZE, "%ld", 0 - static_cast<unsigned long>(LONG_MIN));
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<20>("{0}", LONG_MIN));
+  snprintf(buffer, BUFFER_SIZE, "%ld", LONG_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<20>("{0}", LONG_MAX));
+  snprintf(buffer, BUFFER_SIZE, "%lu", ULONG_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<20>("{0}", ULONG_MAX));
+}
 
-// TEST(Format, FormatHex) {
-//   CHECK_EQUAL("0"_sv, format("{0:x}", 0));
-//   CHECK_EQUAL("42"_sv, format("{0:x}", 0x42));
-//   CHECK_EQUAL("42"_sv, format("{0:x}", 0x42u));
-//   CHECK_EQUAL("-42"_sv, format("{0:x}", -0x42));
-//   CHECK_EQUAL("12345678"_sv, format("{0:x}", 0x12345678));
-//   CHECK_EQUAL("90abcdef"_sv, format("{0:x}", 0x90abcdef));
-//   CHECK_EQUAL("12345678"_sv, format("{0:X}", 0x12345678));
-//   CHECK_EQUAL("90ABCDEF"_sv, format("{0:X}", 0x90ABCDEF));
+TEST(Format, FormatHex) {
+  CHECK_EQUAL("0"_sv, utl::format<10>("{0:x}", 0));
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0:x}", 0x42));
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0:x}", 0x42u));
+  CHECK_EQUAL("-42"_sv, utl::format<10>("{0:x}", -0x42));
+  CHECK_EQUAL("12345678"_sv, utl::format<10>("{0:x}", 0x12345678));
+  CHECK_EQUAL("90abcdef"_sv, utl::format<10>("{0:x}", 0x90abcdef));
+  CHECK_EQUAL("12345678"_sv, utl::format<10>("{0:X}", 0x12345678));
+  CHECK_EQUAL("90ABCDEF"_sv, utl::format<10>("{0:X}", 0x90ABCDEF));
 // #if FMT_USE_INT128
-//   CHECK_EQUAL("0"_sv, format("{0:x}", static_cast<__int128_t>(0)));
-//   CHECK_EQUAL("0"_sv, format("{0:x}", static_cast<__uint128_t>(0)));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{0:x}", static_cast<__int128_t>(0)));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{0:x}", static_cast<__uint128_t>(0)));
 //   CHECK_EQUAL("8000000000000000",
-//             format("{0:x}", static_cast<__int128_t>(INT64_MAX) + 1));
+//             utl::format<10>("{0:x}", static_cast<__int128_t>(INT64_MAX) + 1));
 //   CHECK_EQUAL("-8000000000000001",
-//             format("{0:x}", static_cast<__int128_t>(INT64_MIN) - 1));
+//             utl::format<10>("{0:x}", static_cast<__int128_t>(INT64_MIN) - 1));
 //   CHECK_EQUAL("10000000000000000",
-//             format("{0:x}", static_cast<__int128_t>(UINT64_MAX) + 1));
-//   CHECK_EQUAL("7fffffffffffffffffffffffffffffff"_sv, format("{0:x}", int128_max));
-//   CHECK_EQUAL("-80000000000000000000000000000000"_sv, format("{0:x}", int128_min));
-//   CHECK_EQUAL("ffffffffffffffffffffffffffffffff"_sv, format("{0:x}", uint128_max));
+//             utl::format<10>("{0:x}", static_cast<__int128_t>(UINT64_MAX) + 1));
+//   CHECK_EQUAL("7fffffffffffffffffffffffffffffff"_sv, utl::format<10>("{0:x}", int128_max));
+//   CHECK_EQUAL("-80000000000000000000000000000000"_sv, utl::format<10>("{0:x}", int128_min));
+//   CHECK_EQUAL("ffffffffffffffffffffffffffffffff"_sv, utl::format<10>("{0:x}", uint128_max));
 // #endif
 
-//   char buffer[BUFFER_SIZE];
-//   safe_sprintf(buffer, "-%x", 0 - static_cast<unsigned>(INT_MIN));
-//   CHECK_EQUAL(buffer, format("{0:x}", INT_MIN));
-//   safe_sprintf(buffer, "%x", INT_MAX);
-//   CHECK_EQUAL(buffer, format("{0:x}", INT_MAX));
-//   safe_sprintf(buffer, "%x", UINT_MAX);
-//   CHECK_EQUAL(buffer, format("{0:x}", UINT_MAX));
-//   safe_sprintf(buffer, "-%lx", 0 - static_cast<unsigned long>(LONG_MIN));
-//   CHECK_EQUAL(buffer, format("{0:x}", LONG_MIN));
-//   safe_sprintf(buffer, "%lx", LONG_MAX);
-//   CHECK_EQUAL(buffer, format("{0:x}", LONG_MAX));
-//   safe_sprintf(buffer, "%lx", ULONG_MAX);
-//   CHECK_EQUAL(buffer, format("{0:x}", ULONG_MAX));
-// }
+  char buffer[BUFFER_SIZE]{};
+  snprintf(buffer, BUFFER_SIZE, "-%x", 0 - static_cast<unsigned>(INT_MIN));
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{0:x}", INT_MIN));
+  snprintf(buffer, BUFFER_SIZE, "%x", INT_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<30>("{0:x}", INT_MAX));
+  snprintf(buffer, BUFFER_SIZE, "%x", UINT_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<30>("{0:x}", UINT_MAX));
+  snprintf(buffer, BUFFER_SIZE, "-%lx", 0 - static_cast<unsigned long>(LONG_MIN));
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<30>("{0:x}", LONG_MIN));
+  snprintf(buffer, BUFFER_SIZE, "%lx", LONG_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<30>("{0:x}", LONG_MAX));
+  snprintf(buffer, BUFFER_SIZE, "%lx", ULONG_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<30>("{0:x}", ULONG_MAX));
+}
 
-// TEST(Format, FormatOct) {
-//   CHECK_EQUAL("0"_sv, format("{0:o}", 0));
-//   CHECK_EQUAL("42"_sv, format("{0:o}", 042));
-//   CHECK_EQUAL("42"_sv, format("{0:o}", 042u));
-//   CHECK_EQUAL("-42"_sv, format("{0:o}", -042));
-//   CHECK_EQUAL("12345670"_sv, format("{0:o}", 012345670));
+TEST(Format, FormatOct) {
+  CHECK_EQUAL("0"_sv, utl::format<10>("{0:o}", 0));
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0:o}", 042));
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0:o}", 042u));
+  CHECK_EQUAL("-42"_sv, utl::format<10>("{0:o}", -042));
+  CHECK_EQUAL("12345670"_sv, utl::format<10>("{0:o}", 012345670));
 // #if FMT_USE_INT128
-//   CHECK_EQUAL("0"_sv, format("{0:o}", static_cast<__int128_t>(0)));
-//   CHECK_EQUAL("0"_sv, format("{0:o}", static_cast<__uint128_t>(0)));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{0:o}", static_cast<__int128_t>(0)));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{0:o}", static_cast<__uint128_t>(0)));
 //   CHECK_EQUAL("1000000000000000000000",
-//             format("{0:o}", static_cast<__int128_t>(INT64_MAX) + 1));
+//             utl::format<10>("{0:o}", static_cast<__int128_t>(INT64_MAX) + 1));
 //   CHECK_EQUAL("-1000000000000000000001",
-//             format("{0:o}", static_cast<__int128_t>(INT64_MIN) - 1));
+//             utl::format<10>("{0:o}", static_cast<__int128_t>(INT64_MIN) - 1));
 //   CHECK_EQUAL("2000000000000000000000",
-//             format("{0:o}", static_cast<__int128_t>(UINT64_MAX) + 1));
+//             utl::format<10>("{0:o}", static_cast<__int128_t>(UINT64_MAX) + 1));
 //   CHECK_EQUAL("1777777777777777777777777777777777777777777",
-//             format("{0:o}", int128_max));
+//             utl::format<10>("{0:o}", int128_max));
 //   CHECK_EQUAL("-2000000000000000000000000000000000000000000",
-//             format("{0:o}", int128_min));
+//             utl::format<10>("{0:o}", int128_min));
 //   CHECK_EQUAL("3777777777777777777777777777777777777777777",
-//             format("{0:o}", uint128_max));
+//             utl::format<10>("{0:o}", uint128_max));
 // #endif
 
-//   char buffer[BUFFER_SIZE];
-//   safe_sprintf(buffer, "-%o", 0 - static_cast<unsigned>(INT_MIN));
-//   CHECK_EQUAL(buffer, format("{0:o}", INT_MIN));
-//   safe_sprintf(buffer, "%o", INT_MAX);
-//   CHECK_EQUAL(buffer, format("{0:o}", INT_MAX));
-//   safe_sprintf(buffer, "%o", UINT_MAX);
-//   CHECK_EQUAL(buffer, format("{0:o}", UINT_MAX));
-//   safe_sprintf(buffer, "-%lo", 0 - static_cast<unsigned long>(LONG_MIN));
-//   CHECK_EQUAL(buffer, format("{0:o}", LONG_MIN));
-//   safe_sprintf(buffer, "%lo", LONG_MAX);
-//   CHECK_EQUAL(buffer, format("{0:o}", LONG_MAX));
-//   safe_sprintf(buffer, "%lo", ULONG_MAX);
-//   CHECK_EQUAL(buffer, format("{0:o}", ULONG_MAX));
-// }
+  char buffer[BUFFER_SIZE];
+  snprintf(buffer, BUFFER_SIZE, "-%o", 0 - static_cast<unsigned>(INT_MIN));
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<50>("{0:o}", INT_MIN));
+  snprintf(buffer, BUFFER_SIZE, "%o", INT_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<50>("{0:o}", INT_MAX));
+  snprintf(buffer, BUFFER_SIZE, "%o", UINT_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<50>("{0:o}", UINT_MAX));
+  snprintf(buffer, BUFFER_SIZE, "-%lo", 0 - static_cast<unsigned long>(LONG_MIN));
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<50>("{0:o}", LONG_MIN));
+  snprintf(buffer, BUFFER_SIZE, "%lo", LONG_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<50>("{0:o}", LONG_MAX));
+  snprintf(buffer, BUFFER_SIZE, "%lo", ULONG_MAX);
+  CHECK_EQUAL(utl::string_view{buffer}, utl::format<50>("{0:o}", ULONG_MAX));
+}
 
-// TEST(Format, FormatIntLocale) {
-//   CHECK_EQUAL("1234"_sv, format("{:L}", 1234));
-// }
+TEST(Format, FormatIntLocale) {
+  CHECK_EQUAL("1234"_sv, utl::format<10>("{:L}", 1234));
+}
 
 // struct ConvertibleToLongLong {
 //   operator long long() const { return 1LL << 32; }
 // };
 
 // TEST(Format, FormatConvertibleToLongLong) {
-//   CHECK_EQUAL("100000000"_sv, format("{:x}", ConvertibleToLongLong()));
+//   CHECK_EQUAL("100000000"_sv, utl::format<10>("{:x}", ConvertibleToLongLong()));
 // }
 
 // TEST(Format, FormatFloat) {
-//   CHECK_EQUAL("392.500000"_sv, format("{0:f}", 392.5f));
+//   CHECK_EQUAL("392.500000"_sv, utl::format<10>("{0:f}", 392.5f));
 // }
 
 // TEST(Format, FormatDouble) {
 //   check_unknown_types(1.2, "eEfFgGaAnL%", "double");
-//   CHECK_EQUAL("0.0"_sv, format("{:}", 0.0));
-//   CHECK_EQUAL("0.000000"_sv, format("{:f}", 0.0));
-//   CHECK_EQUAL("0"_sv, format("{:g}", 0.0));
-//   CHECK_EQUAL("392.65"_sv, format("{:}", 392.65));
-//   CHECK_EQUAL("392.65"_sv, format("{:g}", 392.65));
-//   CHECK_EQUAL("392.65"_sv, format("{:G}", 392.65));
-//   CHECK_EQUAL("392.650000"_sv, format("{:f}", 392.65));
-//   CHECK_EQUAL("392.650000"_sv, format("{:F}", 392.65));
-//   CHECK_EQUAL("42"_sv, format("{:L}", 42.0));
+//   CHECK_EQUAL("0.0"_sv, utl::format<10>("{:}", 0.0));
+//   CHECK_EQUAL("0.000000"_sv, utl::format<10>("{:f}", 0.0));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{:g}", 0.0));
+//   CHECK_EQUAL("392.65"_sv, utl::format<10>("{:}", 392.65));
+//   CHECK_EQUAL("392.65"_sv, utl::format<10>("{:g}", 392.65));
+//   CHECK_EQUAL("392.65"_sv, utl::format<10>("{:G}", 392.65));
+//   CHECK_EQUAL("392.650000"_sv, utl::format<10>("{:f}", 392.65));
+//   CHECK_EQUAL("392.650000"_sv, utl::format<10>("{:F}", 392.65));
+//   CHECK_EQUAL("42"_sv, utl::format<10>("{:L}", 42.0));
 //   char buffer[BUFFER_SIZE];
-//   safe_sprintf(buffer, "%e", 392.65);
-//   CHECK_EQUAL(buffer, format("{0:e}", 392.65));
-//   safe_sprintf(buffer, "%E", 392.65);
-//   CHECK_EQUAL(buffer, format("{0:E}", 392.65));
-//   CHECK_EQUAL("+0000392.6"_sv, format("{0:+010.4g}", 392.65));
-//   safe_sprintf(buffer, "%a", -42.0);
-//   CHECK_EQUAL(buffer, format("{:a}", -42.0));
-//   safe_sprintf(buffer, "%A", -42.0);
-//   CHECK_EQUAL(buffer, format("{:A}", -42.0));
+//   snprintf(buffer, BUFFER_SIZE, "%e", 392.65);
+//   CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{0:e}", 392.65));
+//   snprintf(buffer, BUFFER_SIZE, "%E", 392.65);
+//   CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{0:E}", 392.65));
+//   CHECK_EQUAL("+0000392.6"_sv, utl::format<10>("{0:+010.4g}", 392.65));
+//   snprintf(buffer, BUFFER_SIZE, "%a", -42.0);
+//   CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{:a}", -42.0));
+//   snprintf(buffer, BUFFER_SIZE, "%A", -42.0);
+//   CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{:A}", -42.0));
 // }
 
 // TEST(Format, PrecisionRounding) {
-//   CHECK_EQUAL("0"_sv, format("{:.0f}", 0.0));
-//   CHECK_EQUAL("0"_sv, format("{:.0f}", 0.01));
-//   CHECK_EQUAL("0"_sv, format("{:.0f}", 0.1));
-//   CHECK_EQUAL("0.000"_sv, format("{:.3f}", 0.00049));
-//   CHECK_EQUAL("0.001"_sv, format("{:.3f}", 0.0005));
-//   CHECK_EQUAL("0.001"_sv, format("{:.3f}", 0.00149));
-//   CHECK_EQUAL("0.002"_sv, format("{:.3f}", 0.0015));
-//   CHECK_EQUAL("1.000"_sv, format("{:.3f}", 0.9999));
-//   CHECK_EQUAL("0.00123"_sv, format("{:.3}", 0.00123));
-//   CHECK_EQUAL("0.1"_sv, format("{:.16g}", 0.1));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{:.0f}", 0.0));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{:.0f}", 0.01));
+//   CHECK_EQUAL("0"_sv, utl::format<10>("{:.0f}", 0.1));
+//   CHECK_EQUAL("0.000"_sv, utl::format<10>("{:.3f}", 0.00049));
+//   CHECK_EQUAL("0.001"_sv, utl::format<10>("{:.3f}", 0.0005));
+//   CHECK_EQUAL("0.001"_sv, utl::format<10>("{:.3f}", 0.00149));
+//   CHECK_EQUAL("0.002"_sv, utl::format<10>("{:.3f}", 0.0015));
+//   CHECK_EQUAL("1.000"_sv, utl::format<10>("{:.3f}", 0.9999));
+//   CHECK_EQUAL("0.00123"_sv, utl::format<10>("{:.3}", 0.00123));
+//   CHECK_EQUAL("0.1"_sv, utl::format<10>("{:.16g}", 0.1));
 //   // Trigger rounding error in Grisu by a carefully chosen number.
 //   auto n = 3788512123356.985352;
 //   char buffer[64];
-//   safe_sprintf(buffer, "%f", n);
-//   CHECK_EQUAL(buffer, format("{:f}", n));
+//   snprintf(buffer, BUFFER_SIZE, "%f", n);
+//   CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{:f}", n));
 // }
 
 // TEST(Format, FormatNaN) {
 //   double nan = std::numeric_limits<double>::quiet_NaN();
-//   CHECK_EQUAL("nan"_sv, format("{}", nan));
-//   CHECK_EQUAL("+nan"_sv, format("{:+}", nan));
-//   CHECK_EQUAL(" nan"_sv, format("{: }", nan));
-//   CHECK_EQUAL("NAN"_sv, format("{:F}", nan));
-//   CHECK_EQUAL("nan    "_sv, format("{:<7}", nan));
-//   CHECK_EQUAL("  nan  "_sv, format("{:^7}", nan));
-//   CHECK_EQUAL("    nan"_sv, format("{:>7}", nan));
+//   CHECK_EQUAL("nan"_sv, utl::format<10>("{}", nan));
+//   CHECK_EQUAL("+nan"_sv, utl::format<10>("{:+}", nan));
+//   CHECK_EQUAL(" nan"_sv, utl::format<10>("{: }", nan));
+//   CHECK_EQUAL("NAN"_sv, utl::format<10>("{:F}", nan));
+//   CHECK_EQUAL("nan    "_sv, utl::format<10>("{:<7}", nan));
+//   CHECK_EQUAL("  nan  "_sv, utl::format<10>("{:^7}", nan));
+//   CHECK_EQUAL("    nan"_sv, utl::format<10>("{:>7}", nan));
 // }
 
 // TEST(Format, FormatInfinity) {
 //   double inf = std::numeric_limits<double>::infinity();
-//   CHECK_EQUAL("inf"_sv, format("{}", inf));
-//   CHECK_EQUAL("+inf"_sv, format("{:+}", inf));
-//   CHECK_EQUAL("-inf"_sv, format("{}", -inf));
-//   CHECK_EQUAL(" inf"_sv, format("{: }", inf));
-//   CHECK_EQUAL("INF"_sv, format("{:F}", inf));
-//   CHECK_EQUAL("inf    "_sv, format("{:<7}", inf));
-//   CHECK_EQUAL("  inf  "_sv, format("{:^7}", inf));
-//   CHECK_EQUAL("    inf"_sv, format("{:>7}", inf));
+//   CHECK_EQUAL("inf"_sv, utl::format<10>("{}", inf));
+//   CHECK_EQUAL("+inf"_sv, utl::format<10>("{:+}", inf));
+//   CHECK_EQUAL("-inf"_sv, utl::format<10>("{}", -inf));
+//   CHECK_EQUAL(" inf"_sv, utl::format<10>("{: }", inf));
+//   CHECK_EQUAL("INF"_sv, utl::format<10>("{:F}", inf));
+//   CHECK_EQUAL("inf    "_sv, utl::format<10>("{:<7}", inf));
+//   CHECK_EQUAL("  inf  "_sv, utl::format<10>("{:^7}", inf));
+//   CHECK_EQUAL("    inf"_sv, utl::format<10>("{:>7}", inf));
 // }
 
 // TEST(Format, FormatLongDouble) {
-//   CHECK_EQUAL("0.0"_sv, format("{0:}", 0.0l));
-//   CHECK_EQUAL("0.000000"_sv, format("{0:f}", 0.0l));
-//   CHECK_EQUAL("392.65"_sv, format("{0:}", 392.65l));
-//   CHECK_EQUAL("392.65"_sv, format("{0:g}", 392.65l));
-//   CHECK_EQUAL("392.65"_sv, format("{0:G}", 392.65l));
-//   CHECK_EQUAL("392.650000"_sv, format("{0:f}", 392.65l));
-//   CHECK_EQUAL("392.650000"_sv, format("{0:F}", 392.65l));
+//   CHECK_EQUAL("0.0"_sv, utl::format<10>("{0:}", 0.0l));
+//   CHECK_EQUAL("0.000000"_sv, utl::format<10>("{0:f}", 0.0l));
+//   CHECK_EQUAL("392.65"_sv, utl::format<10>("{0:}", 392.65l));
+//   CHECK_EQUAL("392.65"_sv, utl::format<10>("{0:g}", 392.65l));
+//   CHECK_EQUAL("392.65"_sv, utl::format<10>("{0:G}", 392.65l));
+//   CHECK_EQUAL("392.650000"_sv, utl::format<10>("{0:f}", 392.65l));
+//   CHECK_EQUAL("392.650000"_sv, utl::format<10>("{0:F}", 392.65l));
 //   char buffer[BUFFER_SIZE];
-//   safe_sprintf(buffer, "%Le", 392.65l);
-//   CHECK_EQUAL(buffer, format("{0:e}", 392.65l));
-//   CHECK_EQUAL("+0000392.6"_sv, format("{0:+010.4g}", 392.64l));
-//   safe_sprintf(buffer, "%La", 3.31l);
-//   CHECK_EQUAL(buffer, format("{:a}", 3.31l));
+//   snprintf(buffer, BUFFER_SIZE, "%Le", 392.65l);
+//   CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{0:e}", 392.65l));
+//   CHECK_EQUAL("+0000392.6"_sv, utl::format<10>("{0:+010.4g}", 392.64l));
+//   snprintf(buffer, BUFFER_SIZE, "%La", 3.31l);
+//   CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{:a}", 3.31l));
 // }
 
-// TEST(Format, FormatChar) {
-//   const char types[] = "cbBdoxXL";
-//   check_unknown_types('a', types, "char");
-//   CHECK_EQUAL("a"_sv, format("{0}", 'a'));
-//   CHECK_EQUAL("z"_sv, format("{0:c}", 'z'));
-//   CHECK_EQUAL(L"a"_sv, format(L"{0}", 'a'));
-//   int n = 'x';
-//   for (const char* type = types + 1; *type; ++type) {
-//     std::string format_str = utl::format("{{:{}}}", *type);
-//     CHECK_EQUAL(utl::format(format_str, n), utl::format(format_str, 'x'));
-//   }
-//   CHECK_EQUAL(utl::format("{:02X}", n), utl::format("{:02X}", 'x'));
-// }
+TEST(Format, FormatChar) {
+  // const char types[] = "cbBdoxXL";
+  const utl::string types{"cbBdoxXL"};
+  // check_unknown_types('a', types, "char");
+  CHECK_EQUAL("a"_sv, utl::format<10>("{0}", 'a'));
+  CHECK_EQUAL("z"_sv, utl::format<10>("{0:c}", 'z'));
+  // CHECK_EQUAL(L"a"_sv, utl::format<10>(L"{0}", 'a'));
+  int n = 'x';
+  for(const char type : types) {
+    auto format_str = utl::format<10>("{{:{}}}", type); //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    CHECK_EQUAL(utl::format<10>(format_str, n), utl::format<10>(format_str, 'x'));
+  }
+  CHECK_EQUAL(utl::format<10>("{:02X}", n), utl::format<10>("{:02X}", 'x'));
+}
 
-// TEST(Format, FormatVolatileChar) {
-//   volatile char c = 'x';
-//   CHECK_EQUAL("x"_sv, format("{}", c));
-// }
+TEST(Format, FormatVolatileChar) {
+  volatile char c = 'x';
+  CHECK_EQUAL("x"_sv, utl::format<10>("{}", c));
+}
 
-// TEST(Format, FormatUnsignedChar) {
-//   CHECK_EQUAL("42"_sv, format("{}", static_cast<unsigned char>(42)));
-//   CHECK_EQUAL("42"_sv, format("{}", static_cast<uint8_t>(42)));
-// }
+TEST(Format, FormatUnsignedChar) {
+  CHECK_EQUAL("42"_sv, utl::format<10>("{}", static_cast<unsigned char>(42)));
+  CHECK_EQUAL("42"_sv, utl::format<10>("{}", static_cast<uint8_t>(42)));
+}
 
-// TEST(Format, FormatWChar) {
-//   CHECK_EQUAL(L"a"_sv, format(L"{0}", L'a'));
-//   // This shouldn't compile:
-//   // format("{}", L'a');
-// }
+TEST(Format, FormatWChar) {
+  // CHECK_EQUAL(L"a"_sv, utl::format<10>(L"{0}", L'a'));
+  // This shouldn't compile:
+  // utl::format<10>("{}", L'a');
+}
 
-// TEST(Format, FormatCString) {
-//   check_unknown_types("test", "sp", "string");
-//   CHECK_EQUAL("test"_sv, format("{0}", "test"));
-//   CHECK_EQUAL("test"_sv, format("{0:s}", "test"));
-//   char nonconst[] = "nonconst";
-//   CHECK_EQUAL("nonconst"_sv, format("{0}", nonconst));
-//   EXPECT_THROW_MSG(format("{0}", static_cast<const char*>(nullptr)),
-//                    format_error, "string pointer is null");
-// }
+TEST(Format, FormatCString) {
+  // check_unknown_types("test", "sp", "string");
+  CHECK_EQUAL("test"_sv, utl::format<10>("{0}", "test"));
+  CHECK_EQUAL("test"_sv, utl::format<10>("{0:s}", "test"));
+  char nonconst[] = "nonconst"; //NOLINT(cppcoreguidelines-avoid-c-arrays)
+  CHECK_EQUAL("nonconst"_sv, utl::format<10>("{0}", nonconst));
+  // EXPECT_THROW_MSG(utl::format<10>("{0}", static_cast<const char*>(nullptr)),
+  //                  format_error, "string pointer is null");
+}
 
-// TEST(Format, FormatSCharString) {
-//   signed char str[] = "test";
-//   CHECK_EQUAL("test"_sv, format("{0:s}", str));
-//   const signed char* const_str = str;
-//   CHECK_EQUAL("test"_sv, format("{0:s}", const_str));
-// }
+TEST(Format, FormatSCharString) {
+  signed char str[] = "test"; //NOLINT(cppcoreguidelines-avoid-c-arrays)
+  CHECK_EQUAL("test"_sv, utl::format<10>("{0:s}", str));
+  const signed char* const_str = str;
+  //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  CHECK_EQUAL("test"_sv, utl::format<10>("{0:s}", const_str)); 
+}
 
-// TEST(Format, FormatUCharString) {
-//   unsigned char str[] = "test";
-//   CHECK_EQUAL("test"_sv, format("{0:s}", str));
-//   const unsigned char* const_str = str;
-//   CHECK_EQUAL("test"_sv, format("{0:s}", const_str));
-//   unsigned char* ptr = str;
-//   CHECK_EQUAL("test"_sv, format("{0:s}", ptr));
-// }
+TEST(Format, FormatUCharString) {
+  unsigned char str[] = "test";
+  CHECK_EQUAL("test"_sv, utl::format<10>("{0:s}", str));
+  const unsigned char* const_str = str;
+  //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  CHECK_EQUAL("test"_sv, utl::format<10>("{0:s}", const_str));
+  unsigned char* ptr = str;
+  //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  CHECK_EQUAL("test"_sv, utl::format<10>("{0:s}", ptr));
+}
 
-// TEST(Format, FormatPointer) {
-//   check_unknown_types(reinterpret_cast<void*>(0x1234), "p", "pointer");
-//   CHECK_EQUAL("0x0"_sv, format("{0}", static_cast<void*>(nullptr)));
-//   CHECK_EQUAL("0x1234"_sv, format("{0}", reinterpret_cast<void*>(0x1234)));
-//   CHECK_EQUAL("0x1234"_sv, format("{0:p}", reinterpret_cast<void*>(0x1234)));
-//   CHECK_EQUAL("0x" + std::string(sizeof(void*) * CHAR_BIT / 4, 'f'),
-//             format("{0}", reinterpret_cast<void*>(~uintptr_t())));
-//   CHECK_EQUAL("0x1234"_sv, format("{}", utl::ptr(reinterpret_cast<int*>(0x1234))));
-//   std::unique_ptr<int> up(new int(1));
-//   CHECK_EQUAL(format("{}", utl::ptr(up.get())), format("{}", utl::ptr(up)));
-//   std::shared_ptr<int> sp(new int(1));
-//   CHECK_EQUAL(format("{}", utl::ptr(sp.get())), format("{}", utl::ptr(sp)));
-//   CHECK_EQUAL("0x0"_sv, format("{}", nullptr));
-// }
+TEST(Format, FormatPointer) {
+  // check_unknown_types(reinterpret_cast<void*>(0x1234), "p", "pointer");
+  CHECK_EQUAL("0x0"_sv, utl::format<10>("{0}", static_cast<void*>(nullptr)));
+  CHECK_EQUAL("0x1234"_sv, utl::format<10>("{0}", reinterpret_cast<void*>(0x1234)));
+  CHECK_EQUAL("0x1234"_sv, utl::format<10>("{0:p}", reinterpret_cast<void*>(0x1234)));
+  CHECK_EQUAL(utl::format<50>("0x{}", utl::string<50>(sizeof(void*) * CHAR_BIT / 4, 'f')),
+            utl::format<50>("{0}", reinterpret_cast<void*>(~uintptr_t())));
+  // CHECK_EQUAL("0x1234"_sv, utl::format<10>("{}", utl::ptr(reinterpret_cast<int*>(0x1234))));
+  // std::unique_ptr<int> up(new int(1));
+  // CHECK_EQUAL(utl::format<10>("{}", utl::ptr(up.get())), utl::format<10>("{}", utl::ptr(up)));
+  // std::shared_ptr<int> sp(new int(1));
+  // CHECK_EQUAL(utl::format<10>("{}", utl::ptr(sp.get())), utl::format<10>("{}", utl::ptr(sp)));
+  CHECK_EQUAL("0x0"_sv, utl::format<10>("{}", nullptr));
+}
 
-// TEST(Format, FormatString) {
-//   CHECK_EQUAL("test"_sv, format("{0}", std::string("test")));
-// }
+TEST(Format, FormatString) {
+  CHECK_EQUAL("test"_sv, utl::format<10>("{0}", utl::string("test")));
+}
 
-// TEST(Format, FormatStringView) {
-//   CHECK_EQUAL("test"_sv, format("{}", string_view("test")));
-//   CHECK_EQUAL(""_sv, format("{}", string_view()));
-// }
+TEST(Format, FormatStringView) {
+  CHECK_EQUAL("test"_sv, utl::format<10>("{}", "test"_sv));
+  CHECK_EQUAL(""_sv, utl::format<10>("{}", ""_sv));
+}
 
 // #ifdef FMT_USE_STRING_VIEW
 // struct string_viewable {};
@@ -1617,7 +1618,7 @@ TEST(Format, HashFlag) {
 //   CHECK_EQUAL("From 1 to 3"_sv, format("From {} to {}", 1, 3));
 
 //   char buffer[BUFFER_SIZE];
-//   safe_sprintf(buffer, "%03.2f", -1.2);
+//   snprintf(buffer, BUFFER_SIZE, "%03.2f", -1.2);
 //   CHECK_EQUAL(buffer, format("{:03.2f}", -1.2));
 
 //   CHECK_EQUAL("a, b, c"_sv, format("{0}, {1}, {2}", 'a', 'b', 'c'));
