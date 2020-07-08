@@ -24,24 +24,35 @@ namespace utl::ranges {
 
 
 template <typename T>
-constexpr auto begin(T&& container) { return container.begin(); }
+constexpr auto* begin(T&& container) { return container.begin(); }
 
 template <typename T, size_t N>
-constexpr auto begin(T (&container)[N]) { return &container[0]; }
+constexpr auto* begin(T (&container)[N]) { return &container[0]; }
 
 template <typename T>
-constexpr auto end(T&& container) { return container.end(); }
+constexpr auto* end(T&& container) { return container.end(); }
 
 template <typename T, size_t N>
-constexpr auto end(T (&container)[N]) { return &container[N-1]; }
+constexpr auto* end(T (&container)[N]) { return &container[N-1]; }
 
+//FIXME: these concepts need a lot of refinement.
 
-template <typename T>
-concept iterable = requires(T container) {
+template <typename C>
+concept iterable = requires(C&& container) {
     begin(container);
     end(container);
+    requires requires(decltype(begin(container))&& iter) {
+        iter++;
+        iter != end(container);
+    };
 };
 
+template <typename C, typename T>
+concept output_iterable = iterable<C> and requires(C&& container, T&& v) {
+    requires requires(decltype(begin(container)) iter) {
+        *iter++ = v;
+    };
+};
 
 template <iterable T>
 struct range_traits {

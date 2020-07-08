@@ -44,9 +44,11 @@ public:
     constexpr string(string<M>& other) : string{impl_tag{},other.data(),N} 
     {}
 
-    constexpr string(int count, char_t ch) : string{}
+    constexpr string(size_t count, char_t ch) : string{}
     {
-        __builtin_memset(m_elements, count, static_cast<unsigned long>(ch));
+        if(count > N) count = N;
+        for(size_t pos=0; pos < count; pos++) m_elements[pos] = ch;
+        m_elements[N] = '\0';
     }
 
     [[nodiscard]] constexpr const char_t* data() const
@@ -106,7 +108,7 @@ public:
         return string_view{c_str(),length()};
     }
 
-    const char_t* begin() {
+    char_t* begin() {
         return &m_elements[0];
     }
     const char_t* begin() const
@@ -114,7 +116,7 @@ public:
         return &m_elements[0];
     }
 
-    const char_t* end()
+    char_t* end()
     {
         return &m_elements[N];
     }    

@@ -2,6 +2,7 @@
 
 #include <utl/utl.hh>
 #include <utl/type-list.hh>
+#include <utl/concepts.hh>
 
 namespace utl {
 
@@ -20,7 +21,11 @@ public:
     const size_t len;
     
     constexpr string_view(const char* s) : str{s}, len{s == nullptr ? 0 : __builtin_strlen(s)} {}
-    constexpr string_view(const char* s, size_t l) : str{s}, len{s == nullptr ? 0 : l} {}    
+    constexpr string_view(const char* s, size_t l) : str{s}, len{s == nullptr ? 0 : l} {}
+    constexpr string_view(decays_to<char*> auto begin_, decays_to<char*> auto end_) 
+      : str{begin_}, len{static_cast<size_t>(end_-begin_)} 
+    {}
+
     constexpr explicit string_view(std::nullptr_t) : str{nullptr}, len{0} {}
     
     [[nodiscard]] constexpr const char* data() const { return str; }

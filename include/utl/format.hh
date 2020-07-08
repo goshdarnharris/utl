@@ -383,45 +383,7 @@ namespace fmt {
         align_pad_out(out, {working.data(), working_pos}, options.fill, options.align, options.width, working_pos, true);
     }
 
-    // internal itoa for 'long' type
-    static constexpr void format_ulong(output& out, unsigned long value, 
-        bool negative, bases base, format_options options)
-    {
-        utl::array<char,MAX_FORMATTED_INT_SIZE> working{};
-        size_t working_pos = 0u;
-        size_t digit_pos = 0u;
-        
-        // if(value) {
-            do {
-                const auto digit_value = static_cast<unsigned int>(value % static_cast<unsigned int>(base));
-                auto digit = digit_value < DECIMAL ? '0' + digit_value : (is_uppercase(options.presentation) ? 'A' : 'a') + digit_value - DECIMAL;
-                
-                digit_pos++;
-                working[working_pos++] = static_cast<char>(digit);
-                value /= static_cast<unsigned int>(base);    
-
-                
-                if(digit_pos % 3 == 0) {
-                    switch(options.grouping_option) {
-                        case format_options::grouping_options::SEP_COMMA:
-                            working[working_pos++] = ',';
-                            if(working_pos == working.size()) break;
-                            break;
-                        case format_options::grouping_options::SEP_USCORE:
-                            working[working_pos++] = '_';
-                            if(working_pos == working.size()) break;
-                            break;
-                        case format_options::grouping_options::NONE:
-                            break;
-                    }
-                }
-            } while((value > 0) and (working_pos < working.size()));
-        // }
-
-        reverse_integer_decorate(out, working, working_pos, negative, base, options);
-    }
-
-    constexpr bases get_int_spec_base(char c)
+    inline constexpr bases get_int_spec_base(char c)
     {
         switch(c) {
             case 'B':
@@ -441,8 +403,63 @@ namespace fmt {
         }
     }
 
+    // internal itoa for 'long' type
+    inline constexpr void format_ulong(output& out, unsigned long value, 
+        bool negative, format_options options)
+    {
+        utl::array<char,MAX_FORMATTED_INT_SIZE> working{};
+        size_t working_pos = 0u;
+        size_t digit_pos = 0u;
+
+        auto base = get_int_spec_base(options.presentation);
+
+        switch(options.presentation)
+        {
+            case 'p':                
+                options.alternate_form = true;
+                options.presentation = 'x';
+                base = bases::HEXADECIMAL;
+                break;
+        }
+        
+        if(value) {
+            while((value > 0) and (working_pos < working.size())) {
+                const auto digit_value = static_cast<unsigned int>(value % static_cast<unsigned int>(base));
+                auto digit = digit_value < DECIMAL ? '0' + digit_value : (is_uppercase(options.presentation) ? 'A' : 'a') + digit_value - DECIMAL;
+                
+                digit_pos++;
+                working[working_pos++] = static_cast<char>(digit);
+                if(working_pos == working.size()) break;
+                value /= static_cast<unsigned int>(base);    
+
+                
+                if(digit_pos % 3 == 0) {
+                    switch(options.grouping_option) {
+                        case format_options::grouping_options::SEP_COMMA:
+                            working[working_pos++] = ',';
+                            if(working_pos == working.size()) break;
+                            break;
+                        case format_options::grouping_options::SEP_USCORE:
+                            working[working_pos++] = '_';
+                            if(working_pos == working.size()) break;
+                            break;
+                        case format_options::grouping_options::NONE:
+                            break;
+                    }
+                }
+            }
+        } else if(not options.alternate_form or base != bases::OCTAL) {
+            working[working_pos++] = '0';
+        }
+
+        reverse_integer_decorate(out, working, working_pos, negative, base, options);
+    }
+
     template <typename T, typename As>
-    concept formattable_as = same_as<T,As>;
+    static constexpr bool is_formattable_as_v = same_as<T,As>;
+
+    template <typename T, typename As>
+    concept formattable_as = is_formattable_as_v<T,As>;
 
     namespace detail {
         struct error{};    
@@ -671,19 +688,17 @@ constexpr auto format(utl::string_view format, Args&&... args)
     return utl::string<N>{buffer.data()};
 }
 
-template <typename T, fmt::formattable... Args>
-    requires requires(T&& v) {
-        v[size_t{}] = char{};
-        { v.size() } -> utl::convertible_to<size_t>;
-    }
-constexpr size_t format_into(T&& buffer, utl::string_view format, Args&&... args)
+template <fmt::formattable... Args>
+constexpr auto format_into(utl::ranges::output_iterable<char> auto&& buffer, utl::string_view format, 
+    Args&&... args)
 {
-    size_t pos = 0;
+    auto iter = utl::ranges::begin(buffer);
+    auto end = utl::ranges::end(buffer);
     auto buffer_out = [&] (char c) {
-        if(pos < buffer.size()) buffer[pos++] = c;
+        if(iter != end) *iter++ = c;
     };
     format_to(buffer_out, format, std::forward<Args>(args)...);
-    return pos;
+    return iter;
 }
 
 template <callable<void,char> F, fmt::formattable... Args>
@@ -715,62 +730,70 @@ namespace fmt {
         .presentation = 'd'
     };
 
-    constexpr void _format(formattable_as<short> auto arg, output& out, field const& f)
+    constexpr format_options default_pointer_options{ 
+        .fill = ' ', 
+        .align = alignment::RIGHT,
+        .sign = format_options::signs::NEGATIVE_ONLY,
+        .width = 0,
+        .presentation = 'x'
+    };
+
+    constexpr format_options default_char_options{ 
+        .fill = ' ', 
+        .align = alignment::RIGHT,
+        .sign = format_options::signs::NEGATIVE_ONLY,
+        .width = 0,
+        .presentation = 'c'
+    };
+
+    constexpr format_options default_unsigned_char_options{ 
+        .fill = ' ', 
+        .align = alignment::RIGHT,
+        .sign = format_options::signs::NEGATIVE_ONLY,
+        .width = 0,
+        .presentation = 'd'
+    };
+
+    //FIXME: need to account for rvalues & lvalues in these, and decay pointers.
+
+    template <typename T> //specialization for char types
+    static constexpr bool is_formattable_as_v<T,const char> = contains_v<T, char, const char, 
+        signed char, const signed char>;
+
+    template <typename T> //specialization for unsigned integer types
+    static constexpr bool is_formattable_as_v<T,const unsigned long> = contains_v<T, 
+        unsigned short, const unsigned short, unsigned int, const unsigned int,
+        unsigned long, const unsigned long>;
+
+    template <typename T> //specialization for signed integer types
+    static constexpr bool is_formattable_as_v<T,const long long> = contains_v<T, 
+        short, const short, int, const int, long, const long, long long,
+        const long long>;
+
+    template <typename T> //specialization for cstring types
+    static constexpr bool is_formattable_as_v<T,const char*> = contains_v<std::decay_t<T>, 
+        char*, const char*, signed char*, const signed char*>;
+
+    template <typename T, typename As> //specialization for pointers
+    static constexpr bool is_formattable_as_v<T,As*> = is_same_v<T,As*>;
+
+    template <typename T> //specialization for unsigned char pointers
+    static constexpr bool is_formattable_as_v<T,const unsigned char*> = contains_v<std::decay_t<T>, 
+        unsigned char*, const unsigned char*>;
+
+    
+    //********************** Number types
+
+    constexpr void _format(formattable_as<const long long> auto arg, output& out, field const& f)
     {
         auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
+        format_ulong(out, static_cast<const unsigned long>(arg < 0 ? -arg : arg), arg < 0, options);
     }
 
-    constexpr void _format(formattable_as<int> auto arg, output& out, field const& f)
+    constexpr void _format(formattable_as<const unsigned long> auto arg, output& out, field const& f)
     {
         auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
-    }
-
-    constexpr void _format(formattable_as<long> auto arg, output& out, field const& f)
-    {
-        auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
-    }
-
-    constexpr void _format(formattable_as<long long> auto arg, output& out, field const& f)
-    {
-        auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
-    }
-
-    constexpr void _format(formattable_as<unsigned char> auto arg, output& out, field const& f)
-    {
-        auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
-    }
-
-    constexpr void _format(formattable_as<unsigned short> auto arg, output& out, field const& f)
-    {
-        auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, get_int_spec_base(options.presentation), options);
-    }
-
-    constexpr void _format(formattable_as<unsigned int> auto arg, output& out, field const& f)
-    {
-        auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, static_cast<unsigned long>(arg), false, get_int_spec_base(options.presentation), options);
-    }
-
-    constexpr void _format(formattable_as<unsigned long> auto arg, output& out, field const& f)
-    {
-        auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, arg, false, get_int_spec_base(options.presentation), options);
-    }
-
-    template <typename T>
-    void _format(T* arg, output& out, field const& f)
-    {
-        auto defaults = default_int_options;
-        defaults.alternate_form = true;
-        defaults.presentation = 'x';
-        auto options = parse_format_options(f.spec, defaults);
-        format_ulong(out, reinterpret_cast<unsigned long>(arg), false, get_int_spec_base(options.presentation), options);
+        format_ulong(out, static_cast<const unsigned long>(arg), false, options);
     }
 
     constexpr void _format(formattable_as<float> auto arg, output& out, field const& f)
@@ -791,7 +814,26 @@ namespace fmt {
         out("{:f}");
     }
 
-    constexpr void _format(utl::string_view arg, output& out, field const& f)
+
+    //********************** Pointer types
+
+    inline void _format(const void* arg, output& out, field const& f)
+    {
+        auto defaults = default_int_options;
+        defaults.presentation = 'p';
+        auto options = parse_format_options(f.spec, defaults);
+        format_ulong(out, reinterpret_cast<unsigned long>(arg), false, options);
+    }
+
+    inline void _format(std::nullptr_t, output& out, field const& f)
+    {
+        _format(reinterpret_cast<void*>(0),out,f);
+    }
+
+    
+    //********************** String types
+
+    inline constexpr void _format(utl::string_view arg, output& out, field const& f)
     {      
         auto options = parse_format_options(f.spec, {
             .fill = ' ',
@@ -802,35 +844,66 @@ namespace fmt {
     }
 
     template<size_t N>
-    constexpr void _format(utl::string<N>& arg, output& out, field const& f)
+    constexpr void _format(utl::same_as<utl::string<N>> auto arg, output& out, field const& f)
     {
-        utl::maybe_unused(f);
-        _format(static_cast<utl::string_view>(arg),out,f);
+        _format(utl::string_view{arg.data(),arg.length()},out,f);
     }
 
-    constexpr void _format(const char* arg, output& out, field const& f)
+    constexpr void _format(formattable_as<const char*> auto arg, output& out, field const& f)
     {
-        _format(utl::string_view{arg},out,f);
+        _format(utl::string_view{reinterpret_cast<const char*>(arg)},out,f);
     }
 
-    constexpr void _format(char* arg, output& out, field const& f)
+    inline void _format(formattable_as<const unsigned char*> auto arg, output& out, field const& f)
     {
-        _format(utl::string_view{arg},out,f);
+        auto options = parse_format_options(f.spec, {.presentation = 'p'});
+        if(options.presentation == 's') {
+            _format(utl::string_view{reinterpret_cast<const char*>(arg)},out,f);
+        } else {
+            _format(reinterpret_cast<const void*>(arg),out,f);
+        }        
     }
 
-    inline void _format(std::nullptr_t, output& out, field const& f)
+    
+    //********************** Character types
+
+    constexpr void _format(formattable_as<const char> auto arg, output& out, field const& f)
     {
-        _format(reinterpret_cast<void*>(0),out,f);
+        auto options = parse_format_options(f.spec, default_char_options);
+        switch(options.presentation) {
+            case 'c':
+                _format(utl::string_view{&arg,1},out,f);
+                break;
+            default:                
+                format_ulong(out, static_cast<unsigned long>(arg < 0 ? -arg : arg), arg < 0, options);
+                break;
+        }        
     }
 
-    constexpr void _format(formattable_as<char> auto arg, output& out, field const& f)
+    constexpr void _format(formattable_as<unsigned char> auto arg, output& out, field const& f)
     {
-        _format(utl::string_view{&arg,1},out,f);
+        auto options = parse_format_options(f.spec, default_unsigned_char_options);
+        switch(options.presentation) {
+            case 'c':
+                _format(static_cast<const char>(arg),out,f);
+                break;
+            default:                
+                format_ulong(out, static_cast<unsigned long>(arg), false, options);
+                break;
+        }
     }
 
     constexpr void _format(formattable_as<bool> auto arg, output& out, field const& f)
     {
-        _format(utl::string_view{arg ? "true" : "false"},out,f);
+        auto options = parse_format_options(f.spec, {.presentation = 's'});
+        switch(options.presentation) {
+            case 's':
+                _format(utl::string_view{arg ? "true" : "false"},out,f);
+                break;
+            default:
+                _format(static_cast<unsigned int>(arg),out,f);
+                break;
+        }
     }
 
 } //namespace fmt

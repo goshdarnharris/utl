@@ -695,8 +695,8 @@ TEST(Format, Fill) {
   CHECK_EQUAL("abc**"_sv, utl::format<10>("{0:*<5}", "abc"));
   CHECK_EQUAL("**0xface"_sv, utl::format<10>("{0:*>8}", reinterpret_cast<void*>(0xface)));
   CHECK_EQUAL("foo="_sv, utl::format<10>("{:}=", "foo"));
-  CHECK_EQUAL(utl::string_view("\0\0\0*",4), utl::format<10>(utl::string_view("{:\0>4}", 6), '*'));
-  CHECK_EQUAL("жж42"_sv, utl::format<10>("{0:ж>4}", 42));
+  // CHECK_EQUAL(utl::string_view("\0\0\0*",4), utl::format<10>(utl::string_view("{:\0>4}", 6), '*'));
+  // CHECK_EQUAL("жж42"_sv, utl::format<10>("{0:ж>4}", 42));
 //   EXPECT_THROW_MSG(utl::format<10>("{:\x80\x80\x80\x80\x80>}", 0), format_error,
 //                    "invalid fill");
 }
@@ -1134,7 +1134,7 @@ TEST(Format, FormatInt) {
   // EXPECT_THROW_MSG(utl::format<10>("{0:v", 42), format_error,
   //                  "missing '}' in format string");
   // check_unknown_types(42, "bBdoxXnLc", "integer");
-  CHECK_EQUAL("x"_sv, utl::format<10>("{:c}", static_cast<int>('x')));
+  // CHECK_EQUAL("x"_sv, utl::format<10>("{:c}", static_cast<int>('x')));
 }
 
 TEST(Format, FormatBin) {
@@ -1373,10 +1373,11 @@ TEST(Format, FormatIntLocale) {
 
 TEST(Format, FormatChar) {
   // const char types[] = "cbBdoxXL";
-  const utl::string types{"cbBdoxXL"};
+  const utl::string types{"bBdoxXL"};
   // check_unknown_types('a', types, "char");
   CHECK_EQUAL("a"_sv, utl::format<10>("{0}", 'a'));
   CHECK_EQUAL("z"_sv, utl::format<10>("{0:c}", 'z'));
+  CHECK_EQUAL("x"_sv, utl::format<10>("{:c}", 'x'));
   // CHECK_EQUAL(L"a"_sv, utl::format<10>(L"{0}", 'a'));
   int n = 'x';
   for(const char type : types) {
@@ -1456,40 +1457,35 @@ TEST(Format, FormatStringView) {
 }
 
 // #ifdef FMT_USE_STRING_VIEW
-// struct string_viewable {};
+struct string_viewable {};
 
 // FMT_BEGIN_NAMESPACE
-// template <> struct formatter<string_viewable> : formatter<std::string_view> {
-//   auto format(string_viewable, format_context& ctx) -> decltype(ctx.out()) {
-//     return formatter<std::string_view>::format("foo", ctx);
-//   }
-// };
+constexpr void _format(string_viewable, utl::fmt::output& out, utl::fmt::field const&)
+{
+  out("foo");
+}
 // FMT_END_NAMESPACE
 
-// TEST(Format, FormatStdStringView) {
-//   CHECK_EQUAL("test"_sv, format("{}", std::string_view("test")));
-//   CHECK_EQUAL("foo"_sv, format("{}", string_viewable()));
-// }
+TEST(Format, FormatStdStringView) {
+  CHECK_EQUAL("test"_sv, utl::format<10>("{}", utl::string_view("test")));
+  CHECK_EQUAL("foo"_sv, utl::format<10>("{}", string_viewable()));
+}
 
-// struct explicitly_convertible_to_std_string_view {
-//   explicit operator std::string_view() const { return "foo"; }
-// };
+struct explicitly_convertible_to_std_string_view {
+  explicit operator utl::string_view() const { return "foo"; }
+};
 
-// namespace fmt {
-// template <>
-// struct formatter<explicitly_convertible_to_std_string_view>
-//     : formatter<std::string_view> {
-//   auto format(const explicitly_convertible_to_std_string_view& v,
-//               format_context& ctx) -> decltype(ctx.out()) {
-//     return format_to(ctx.out(), "'{}'", std::string_view(v));
-//   }
-// };
-// }  // namespace fmt
+constexpr void _format(explicitly_convertible_to_std_string_view const& arg, utl::fmt::output& out, 
+  utl::fmt::field const& f)
+{
+  utl::maybe_unused(f);
+  format_to(out, "'{}'", utl::string_view{arg});
+}
 
-// TEST(Format, FormatExplicitlyConvertibleToStdStringView) {
-//   CHECK_EQUAL("'foo'",
-//             fmt::format("{}", explicitly_convertible_to_std_string_view()));
-// }
+TEST(Format, FormatExplicitlyConvertibleToStdStringView) {
+  CHECK_EQUAL("'foo'"_sv,
+            utl::format<10>("{}", explicitly_convertible_to_std_string_view()));
+}
 // #endif
 
 // // std::is_constructible is broken in MSVC until version 2015.
@@ -1548,7 +1544,7 @@ TEST(Format, FormatStringView) {
 //                    "unknown format specifier");
 // }
 
-// class Answer {};
+class Answer {};
 
 // FMT_BEGIN_NAMESPACE
 // template <> struct formatter<Answer> : formatter<int> {
@@ -1559,18 +1555,26 @@ TEST(Format, FormatStringView) {
 // };
 // FMT_END_NAMESPACE
 
-// TEST(Format, CustomFormat) {
-//   CHECK_EQUAL("42"_sv, format("{0}", Answer()));
-//   CHECK_EQUAL("0042"_sv, format("{:04}", Answer()));
-// }
+constexpr void _format(Answer, utl::fmt::output& out, utl::fmt::field const& f)
+{
+  _format(42,out,f);
+}
 
-// TEST(Format, CustomFormatTo) {
-//   char buf[10] = {};
-//   auto end =
-//       &*fmt::format_to(fmt::detail::make_checked(buf, 10), "{}", Answer());
-//   CHECK_EQUAL(end, buf + 2);
-//   EXPECT_STREQ(buf, "42");
-// }
+TEST(Format, CustomFormat) {
+  CHECK_EQUAL("42"_sv, utl::format<10>("{0}", Answer()));
+  CHECK_EQUAL("0042"_sv, utl::format<10>("{:04}", Answer()));
+}
+
+TEST(Format, CustomFormatTo) {
+  //TODO: format_into should return an iterator from the container pointing to the next free position.
+  //   then, there should be an overload of format_into that accepts an iterator.
+
+  char buf[10] = {};
+  auto end = &*utl::format_into(utl::span{buf, 10}, "{}", Answer());
+  CHECK_EQUAL(end, buf + 2);
+  auto view = utl::string_view{utl::ranges::begin(buf),end};
+  CHECK_EQUAL("42"_sv, view);
+}
 
 // TEST(Format, WideFormatString) {
 //   CHECK_EQUAL(L"42"_sv, format(L"{}", 42));
@@ -1585,31 +1589,18 @@ TEST(Format, FormatStringView) {
 //                    "str", reinterpret_cast<void*>(1000), 'X'));
 // }
 
-// TEST(Format, FormatExamples) {
-//   std::string message = format("The answer is {}", 42);
-//   CHECK_EQUAL("The answer is 42", message);
+TEST(Format, FormatExamples) {
+  auto message = utl::format<20>("The answer is {}", 42);
+  CHECK_EQUAL("The answer is 42"_sv, message);
 
-//   CHECK_EQUAL("42"_sv, format("{}", 42));
-//   CHECK_EQUAL("42"_sv, format(std::string("{}"), 42));
+  CHECK_EQUAL("42"_sv, utl::format<5>("{}", 42));
+  CHECK_EQUAL("42"_sv, utl::format<5>(utl::string("{}"), 42));
 
-//   memory_buffer out;
-//   format_to(out, "The answer is {}.", 42);
-//   CHECK_EQUAL("The answer is 42.", to_string(out));
-
-//   const char* filename = "nonexistent";
-//   FILE* ftest = safe_fopen(filename, "r");
-//   if (ftest) fclose(ftest);
-//   int error_code = errno;
-//   EXPECT_TRUE(ftest == nullptr);
-//   EXPECT_SYSTEM_ERROR(
-//       {
-//         FILE* f = safe_fopen(filename, "r");
-//         if (!f)
-//           throw fmt::system_error(errno, "Cannot open file '{}'", filename);
-//         fclose(f);
-//       },
-//       error_code, "Cannot open file 'nonexistent'");
-// }
+  utl::array<char,20> out;
+  auto end = utl::format_into(out, "The answer is {}.", 42);
+  auto view = utl::string_view{utl::ranges::begin(out),end};
+  CHECK_EQUAL("The answer is 42."_sv, view);
+}
 
 // TEST(Format, Examples) {
 //   CHECK_EQUAL("First, thou shalt count to three",

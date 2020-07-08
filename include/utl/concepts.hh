@@ -16,6 +16,9 @@ namespace utl {
 template <typename T, typename U>
 concept same_as = is_same_v<T,U>;
 
+template <typename T, typename To>
+concept decays_to = same_as<To,std::decay_t<T>>;
+
 template <typename From, typename To>
 concept convertible_to =
     std::is_convertible_v<From, To> &&
