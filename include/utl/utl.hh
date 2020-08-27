@@ -28,7 +28,7 @@ inline void terminate(void)
 
 } // namespace std
 
-extern void* operator new(size_t size, void* where);
+extern void* operator new(size_t size, void* where) noexcept;
 
 #endif // UTL_BUILD_NOCXX
 

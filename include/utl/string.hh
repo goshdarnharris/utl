@@ -19,7 +19,7 @@ class string {
 
     constexpr string(impl_tag, const char_t* str, size_t length = N)
     {
-        __builtin_memcpy(m_elements, str, length <= N ? length : N);
+        if(length != 0) __builtin_memcpy(m_elements, str, length <= N ? length : N);
         m_elements[N] = '\0';
     }    
 

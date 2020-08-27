@@ -19,6 +19,40 @@ def transform(header):
     source = source.replace("include","src")
     return source if condition(source) else None
 
+def add_sanitizers(builder):
+    sanitizers = []
+    sanitizers.append("address")
+    sanitizers.append("alignment")
+    sanitizers.append("bool")
+    sanitizers.append("bounds")
+    sanitizers.append("enum")
+    sanitizers.append("float-cast-overflow")
+    sanitizers.append("float-divide-by-zero")
+    sanitizers.append("integer-divide-by-zero")
+    sanitizers.append("nonnull-attribute")
+    sanitizers.append("null")
+    sanitizers.append("nullability-arg")
+    sanitizers.append("nullability-assign")
+    sanitizers.append("nullability-return")
+    sanitizers.append("pointer-overflow")
+    sanitizers.append("return")
+    sanitizers.append("returns-nonnull-attribute")
+    sanitizers.append("shift")
+    sanitizers.append("signed-integer-overflow")
+    sanitizers.append("unreachable")
+    sanitizers.append("unsigned-integer-overflow")
+    sanitizers.append("vla-bound")
+    sanitizers_string = "-fsanitize={0}".format(",".join(sanitizers))
+    builder.append_cflag(sanitizers_string)
+    builder.append_lflag(sanitizers_string)
+
+def add_lto(builder):
+    builder.append_cflag("-flto")
+    builder.append_lflag("-flto")
+    builder.append_cflag("-S")
+    builder.append_lflag("-x ir")
+
+
 @Frontend.first
 def configure(context):
     luminaire.toolchain.AUTOMATIC_CXX_BUILDER(context,"builder")
@@ -43,28 +77,21 @@ def configure(context):
     context.builder.append_cflag("-fcoroutines-ts")
     # context.builder.append_cflag("-ftime-trace")
     if context.defined(MODE="test"):
-        context.builder.append_cflag("-Wno-global-constructors")
-        context.builder.append_cflag("-Wno-exit-time-destructors")
-        context.builder.append_cflag("-Wno-error-deprecated-declarations")
-        context.builder.append_cflag("-Wno-float-equal")
-
         luminaire.toolchain.OPTIMIZED(context.builder,optimize='3')
         luminaire.toolchain.PRUNE(context.builder)
+        
         context.builder.append_cflag('-g3')
         context.builder.append_lflag('-g3')
         context.builder.append_cflag('-ggdb')
         context.builder.append_lflag('-ggdb')
         # link-time optimization directives
-        context.builder.append_cflag("-flto")
-        context.builder.append_lflag("-flto")
-        context.builder.append_cflag("-S")
-        context.builder.append_lflag("-x ir")
-    if context.defined(MODE="debug"):
+        # add_lto(context.builder)
+
         context.builder.append_cflag("-Wno-global-constructors")
         context.builder.append_cflag("-Wno-exit-time-destructors")
         context.builder.append_cflag("-Wno-error-deprecated-declarations")
         context.builder.append_cflag("-Wno-float-equal")
-
+    if context.defined(MODE="debug"):
         luminaire.toolchain.OPTIMIZED(context.builder,optimize='s')
         luminaire.toolchain.PRUNE(context.builder)
         context.builder.append_cflag('-g3')
@@ -72,39 +99,24 @@ def configure(context):
         context.builder.append_cflag('-ggdb')
         context.builder.append_lflag('-ggdb')
         context.builder.append_lflag("-lm")
+        
+        context.builder.append_cflag("-Wno-global-constructors")
+        context.builder.append_cflag("-Wno-exit-time-destructors")
+        context.builder.append_cflag("-Wno-error-deprecated-declarations")
+        context.builder.append_cflag("-Wno-float-equal")
     if context.defined(MODE="sanitize"):
-        luminaire.toolchain.OPTIMIZED(context.builder)
+        luminaire.toolchain.OPTIMIZED(context.builder,optimize='3')
         luminaire.toolchain.STRIP(context.builder)
         luminaire.toolchain.PRUNE(context.builder)       
-        context.builder.append_cflag("-flto")
-        context.builder.append_lflag("-flto")
-        context.builder.append_cflag("-S")
-        context.builder.append_lflag("-x ir")
-        sanitizers = []
-        sanitizers.append("address")
-        sanitizers.append("alignment")
-        sanitizers.append("bool")
-        sanitizers.append("bounds")
-        sanitizers.append("enum")
-        sanitizers.append("float-cast-overflow")
-        sanitizers.append("float-divide-by-zero")
-        sanitizers.append("integer-divide-by-zero")
-        sanitizers.append("nonnull-attribute")
-        sanitizers.append("null")
-        sanitizers.append("nullability-arg")
-        sanitizers.append("nullability-assign")
-        sanitizers.append("nullability-return")
-        sanitizers.append("pointer-overflow")
-        sanitizers.append("return")
-        sanitizers.append("returns-nonnull-attribute")
-        sanitizers.append("shift")
-        sanitizers.append("signed-integer-overflow")
-        sanitizers.append("unreachable")
-        sanitizers.append("unsigned-integer-overflow")
-        sanitizers.append("vla-bound")
-        sanitizers_string = "-fsanitize={0}".format(",".join(sanitizers))
-        context.builder.append_cflag(sanitizers_string)
-        context.builder.append_lflag(sanitizers_string)
+        add_lto(context.builder)
+        
+        context.builder.append_cflag("-Wno-error-global-constructors")
+        context.builder.append_cflag("-Wno-error-exit-time-destructors")
+        context.builder.append_cflag("-Wno-error-deprecated-declarations")
+        context.builder.append_cflag("-Wno-error-float-equal")
+
+    add_sanitizers(context.builder)
+
     context.builder.append_cflag("-isystem packages/cpputest/include")
     context.builder.append_include("include")
     context.builder.append_include("test-platform")

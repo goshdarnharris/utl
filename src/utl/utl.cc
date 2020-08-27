@@ -1,5 +1,7 @@
 
-#include "utl/utl.hh"
+#include <utl/utl.hh>
+
+#if UTL_BUILD_NOCXX == 1
 
 extern "C" {
 
@@ -29,7 +31,7 @@ void* operator new[](size_t size)
 }
 
 __attribute__((weak))
-void* operator new(size_t size, void* storage)
+void* operator new(size_t size, void* storage) noexcept
 {
     static_cast<void>(size);
     return storage;
@@ -48,3 +50,5 @@ void operator delete[](void* pointer) noexcept
     //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
     free(pointer);
 }
+
+#endif
