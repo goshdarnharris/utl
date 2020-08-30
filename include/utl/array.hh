@@ -16,7 +16,7 @@ namespace detail {
 template <typename T, size_t N>
 struct array {
     using value_t = T;
-    T _storage[N]{};
+    T _storage[N]{}; //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
     constexpr T& operator[](size_t idx) {
         return _storage[idx];
@@ -41,39 +41,39 @@ struct array {
     constexpr T* begin() {
         return &_storage[0];
     }
-    constexpr const T* begin() const {
+    [[nodiscard]] constexpr const T* begin() const {
         return &_storage[0];
     }
     constexpr volatile T* begin() volatile {
         return &_storage[0];
     }
-    constexpr const volatile T* begin() const volatile {
+    [[nodiscard]] constexpr const volatile T* begin() const volatile {
         return &_storage[0];
     }
 
     constexpr T* end() {
         return &_storage[N];
     }    
-    constexpr const T* end() const {
+    [[nodiscard]] constexpr const T* end() const {
         return &_storage[N];
     }
     constexpr volatile T* end() volatile {
         return &_storage[N];
     }    
-    constexpr const volatile T* end() const volatile {
+    [[nodiscard]] constexpr const volatile T* end() const volatile {
         return &_storage[N];
     }
 
     constexpr T* data(void) {
         return _storage;
     }
-    constexpr T const* data(void) const {
+    [[nodiscard]] constexpr T const* data(void) const {
         return _storage;
     }
     constexpr volatile T* data(void) volatile {
         return _storage;
     }
-    constexpr const volatile T* data(void) const volatile {
+    [[nodiscard]] constexpr const volatile T* data(void) const volatile {
         return _storage;
     }
 };

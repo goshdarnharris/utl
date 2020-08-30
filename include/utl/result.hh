@@ -585,7 +585,7 @@ public:
 
     template <typename U>
     constexpr result(error_tag, U&& error)
-        requires std::is_convertible_v<U,T>
+        requires std::is_convertible_v<U,E>
       : m_storage{error_tag{}, std::forward<U>(error)}
     {}
 
@@ -716,8 +716,8 @@ static constexpr bool is_result_v = is_result<T>::value;
 //"return result<T,E>{value_tag{},T}", 
 //for example, these allow them to say "return success(T);"
 template <typename T, typename E = error_code>
-static constexpr auto failure(T&& error) -> result<T,E> {
-    return {error_tag{}, std::forward<T>(error)};
+static constexpr auto failure(E&& error) -> result<T,E> {
+    return {error_tag{}, std::forward<E>(error)};
 }
 
 template <typename T, typename E = error_code>

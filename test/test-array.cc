@@ -5,18 +5,9 @@
 #include "utl/test-types.hh"
 #include "utl/utl.hh"
 #include "utl/array.hh"
+#include <utl/logger.hh>
 
-TEST_GROUP(array) {
-
-void setup(void)
-{
-}
-
-void teardown(void)
-{
-}
-
-};
+TEST_GROUP(array) {};
 
 TEST(array,Construction)
 {

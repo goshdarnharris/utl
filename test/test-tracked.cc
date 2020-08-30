@@ -20,7 +20,6 @@ void teardown(void)
 TEST(Tracked,DefaultConstruction)
 {
     utl::tracked obj{};
-    
     CHECK(obj.default_constructed());
     CHECK(!obj.regular_constructed());
     CHECK(!obj.copy_constructed());
@@ -32,7 +31,6 @@ TEST(Tracked,DefaultConstruction)
 TEST(Tracked, RegularConstruction)
 {
     utl::tracked obj{1,2,3};
-    
     CHECK(!obj.default_constructed());
     CHECK(obj.regular_constructed());
     CHECK(!obj.copy_constructed());

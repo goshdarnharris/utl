@@ -13,7 +13,7 @@ TEST_GROUP(Names) {};
 
 using namespace utl::literals;
 
-enum class foo {
+enum class demo : uint8_t {
     HEY,
     THERE
 };
@@ -86,34 +86,34 @@ TEST(Names,Noncopyable)
 
 TEST(Names,GetEnumValueNameLiteral)
 {
-    constexpr auto name = utl::get_enum_name(foo::HEY);
-    CHECK_EQUAL("foo::HEY"_sv, name);
+    constexpr auto name = utl::get_enum_name(demo::HEY);
+    CHECK_EQUAL("demo::HEY"_sv, name);
 }
 
 TEST(Names,ConstexprGetEnumValueNameRuntime)
 {
-    constexpr auto value = foo::THERE;
+    constexpr auto value = demo::THERE;
     constexpr auto name = utl::get_enum_name(value);
-    CHECK_EQUAL("foo::THERE"_sv, name);
+    CHECK_EQUAL("demo::THERE"_sv, name);
 }
 
 TEST(Names,GetEnumValueNameRuntime)
 {
-    auto value = foo::THERE;
+    auto value = demo::THERE;
     auto name = utl::get_enum_name(value);
-    CHECK_EQUAL("foo::THERE"_sv, name);
+    CHECK_EQUAL("demo::THERE"_sv, name);
 }
 
 TEST(Names,GetEnumValueNameUnnamed)
 {
-    auto value = static_cast<foo>(10u);
+    auto value = static_cast<demo>(10u);
     auto name = utl::get_enum_name(value);
     CHECK_EQUAL(""_sv, name);
 }
 
 TEST(Names,EnumCount)
 {
-    constexpr auto count = utl::enum_count<foo>;
+    constexpr auto count = utl::enum_count<demo>;
     CHECK_EQUAL(2, count);
 }
 
@@ -137,7 +137,7 @@ TEST(Names,CopyIntoString)
 
 TEST(Names,CustomFormatEnum)
 {
-    auto value = foo::THERE;
+    auto value = demo::THERE;
     auto name = utl::format<15>("{}", value);
-    CHECK_EQUAL("foo::THERE"_sv, name);
+    CHECK_EQUAL("demo::THERE"_sv, name);
 }

@@ -91,8 +91,24 @@ template <typename... Ts>
 struct tuple_size<tuple<Ts...>> : utl::integral_constant<size_t,tuple<Ts...>::size()> {};
 
 template <typename... Args>
-constexpr auto tie(Args&... args) {
+constexpr auto tie(Args&... args)
+{
     return tuple<Args&...>(args...);
+}
+
+template <typename F, typename... Ts>
+constexpr auto apply(F&& functor, tuple<Ts...>& args)
+{
+    return apply(std::forward<F>(functor), args, make_index_sequence<sizeof...(Ts)>{});
+}
+
+template <typename F, typename... Ts, size_t... Is>
+    requires requires(F&& f, tuple<Ts...>& a) {
+        f(get<Is>(a)...);
+    }
+constexpr auto apply(F&& functor, tuple<Ts...>& args, index_sequence<Is...>)
+{
+    return functor(get<Is>(args)...);
 }
 
 } //namespace utl

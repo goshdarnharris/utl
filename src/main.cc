@@ -4,19 +4,18 @@
 #include <stdio.h>
 #include <CppUTest/CommandLineTestRunner.h>
 
-extern "C" int main(int argc, char* argv[]);
-
 struct printf_logger {
-    static utl::result<void> write(utl::string_view const& s) {
+    utl::result<void> write(utl::string_view const& s) const {
         auto* substr = new char[s.size()+1];
         strncpy(substr, s.data(), s.size());
         substr[s.size()] = '\0'; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         printf("%s",substr);
+        delete[] substr;
         return utl::success();
     }
 };
 
-int main(int argc, char* argv[])
+extern "C" int main(int argc, char* argv[])
 {
     //FIXME: logger ergonomics aren't great.
     const auto plog = printf_logger{};

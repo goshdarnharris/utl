@@ -10,7 +10,7 @@
 
 #include <utl/type-list.hh>
 
-#define UTL_UNUSED __attribute__((unused))
+// #define UTL_UNUSED __attribute__((unused))
 
 #ifndef UTL_BUILD_NOCXX
 #define UTL_BUILD_NOCXX 1
@@ -23,7 +23,7 @@ namespace std {
 [[noreturn]]
 inline void terminate(void)
 {
-    while (1);
+    while (true);
 }
 
 } // namespace std

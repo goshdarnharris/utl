@@ -2,6 +2,7 @@
 # vim: set tabstop=4 shiftwidth=4 expandtab filetype=python
 
 import copy, os, luminaire.toolchain
+import source.builder.clang_tidy
 
 Frontend.target("ARCH",{"x86_64"},"x86_64")
 Frontend.target("MODE",{"test","debug","sanitize"},"test")
@@ -51,6 +52,11 @@ def add_lto(builder):
     builder.append_lflag("-flto")
     builder.append_cflag("-S")
     builder.append_lflag("-x ir")
+    builder.append_lflag("-Wl,-plugin-opt=save-temps")
+
+def add_ikos(builder):
+    builder.append_cflag("-save-temps=obj")
+
 
 
 @Frontend.first
@@ -66,6 +72,7 @@ def configure(context):
     # relax some of the extreme constraints
     context.builder.append_cflag("-Wno-c++98-compat")
     context.builder.append_cflag("-Wno-c++98-compat-pedantic")
+    context.builder.append_cflag("-Wno-c++20-compat")
     context.builder.append_cflag("-Wno-weak-vtables")
     context.builder.append_cflag("-Wno-padded")
     context.builder.append_cflag("-Wno-extra-semi-stmt")
@@ -85,12 +92,14 @@ def configure(context):
         context.builder.append_cflag('-ggdb')
         context.builder.append_lflag('-ggdb')
         # link-time optimization directives
-        # add_lto(context.builder)
+        add_lto(context.builder)
 
         context.builder.append_cflag("-Wno-global-constructors")
         context.builder.append_cflag("-Wno-exit-time-destructors")
         context.builder.append_cflag("-Wno-error-deprecated-declarations")
         context.builder.append_cflag("-Wno-float-equal")
+
+        # add_sanitizers(context.builder)
     if context.defined(MODE="debug"):
         luminaire.toolchain.OPTIMIZED(context.builder,optimize='s')
         luminaire.toolchain.PRUNE(context.builder)
@@ -115,18 +124,24 @@ def configure(context):
         context.builder.append_cflag("-Wno-error-deprecated-declarations")
         context.builder.append_cflag("-Wno-error-float-equal")
 
-    add_sanitizers(context.builder)
+        add_sanitizers(context.builder)
+
+    context.builder.append_lflag("-lm")
 
     context.builder.append_cflag("-isystem packages/cpputest/include")
     context.builder.append_include("include")
     context.builder.append_include("test-platform")
     context.builder.append_include(".")
+    context.builder.append_sys_include("/home/gharris/ikos/install/include")
     context.search(path="src/main.cc",condition=condition)
     context.search(path="packages/cpputest/src/Platforms/Gcc",condition=condition)
     context.search(path="packages/cpputest/src/CppUTest",condition=condition)
     context.search(path="test",condition=condition)
     
     context.builder.append_lflag(context.format("-Wl,-Map=build/{ARCH}/{MODE}/output.map"))
+
+    setattr(context, "analyzer", None)
+    context.analyzer = source.builder.clang_tidy.Analyzer()
 
 @Frontend.rule(["build/{ARCH}/{MODE}/*.o"],["build/{ARCH}/{MODE}/unittest"])
 def link(context,inputs,outputs):
@@ -139,5 +154,6 @@ def compile_source(context,inputs,outputs):
     if "packages/cpputest" in str(inputs[0]):
         with context.builder.push_cflags("-Wno-everything"):
             do_it()
-    else: do_it()
-    
+    else: 
+        do_it()
+        # context.analyzer.analyze_source(inputs[0])

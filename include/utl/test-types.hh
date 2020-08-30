@@ -19,7 +19,8 @@ struct tracked {
         uint32_t copy_assigned;
         uint32_t move_assigned;
         uint32_t moved_from;
-    } m_state;
+    };
+    state m_state{};
 
     tracked() : m_state{construction_kind::dfault,0,0,0} {}
 
@@ -58,31 +59,31 @@ struct tracked {
         return *this;
     }
 
-    bool default_constructed() const {
+    [[nodiscard]] bool default_constructed() const {
         return m_state.construction == construction_kind::dfault;
     }
 
-    bool regular_constructed() const {
+    [[nodiscard]] bool regular_constructed() const {
         return m_state.construction == construction_kind::regular;
     }
 
-    bool copy_constructed() const {
+    [[nodiscard]] bool copy_constructed() const {
         return m_state.construction == construction_kind::copy;
     }
 
-    bool move_constructed() const {
+    [[nodiscard]] bool move_constructed() const {
         return m_state.construction == construction_kind::move;
     }
 
-    uint32_t copy_assigned() const {
+    [[nodiscard]] uint32_t copy_assigned() const {
         return m_state.copy_assigned;
     }
 
-    uint32_t move_assigned() const {
+    [[nodiscard]] uint32_t move_assigned() const {
         return m_state.move_assigned;
     }
 
-    uint32_t moved_from() const {
+    [[nodiscard]] uint32_t moved_from() const {
         return m_state.moved_from;
     }
 };

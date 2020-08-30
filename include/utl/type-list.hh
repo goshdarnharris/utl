@@ -53,7 +53,7 @@ struct contains
 };
 
 template <typename T, typename... Ts>
-constexpr bool contains_v = contains<T,Ts...>::value;
+inline constexpr bool contains_v = contains<T,Ts...>::value;
 
 namespace detail {
 

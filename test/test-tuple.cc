@@ -7,10 +7,7 @@
 #include <utl/tuple.hh>
 #include <utl/logger.hh>
 
-TEST_GROUP(tuple) {
-    void setup(void) {}
-    void teardown(void) {}
-};
+TEST_GROUP(tuple) {};
 
 TEST(tuple,create)
 {
@@ -93,3 +90,29 @@ TEST(tuple,references)
     CHECK(utl::get<2>(foo) == c);
 }
 
+struct wrapper {
+    int a;
+    float b;
+    bool c;
+};
+
+static wrapper wrap_args(int a, float b, bool c)
+{
+    return {a,b,c};
+}
+
+TEST(tuple,apply)
+{
+    using tuple_t = utl::tuple<int&,float&,bool&>;
+
+    int a = 5;
+    float b = 3.4f;
+    bool c = true;
+
+    tuple_t foo{a,b,c};
+
+    auto result = utl::apply(wrap_args, foo);
+    CHECK_EQUAL(a, result.a);
+    CHECK_EQUAL(b, result.b);
+    CHECK_EQUAL(c, result.c);
+}

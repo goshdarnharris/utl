@@ -13,6 +13,17 @@ constexpr int32_t ipow(int32_t base, int32_t exp, int32_t result = 1) {
 //don't want to lose sight that this is all fixed point.
 //TODO: consider factoring the idea of "precision" out from the unit types.
 
+inline constexpr size_t DECIMAL_ORDER = 10;
+inline constexpr int ORDER_PICO = -12;
+inline constexpr int ORDER_NANO = -9;
+inline constexpr int ORDER_MICRO = -6;
+inline constexpr int ORDER_MILLI = -3;
+inline constexpr int ORDER_BASE = 0;
+inline constexpr int ORDER_KILO = 3;
+inline constexpr int ORDER_MEGA = 6;
+inline constexpr int ORDER_GIGA = 9;
+inline constexpr int ORDER_TERA = 12;
+
 template <
     typename BaseUnit,
     int32_t Magnitude, 
@@ -31,7 +42,7 @@ struct metric {
 
     template <int32_t Magnitude_Other, typename OverflowPolicy_Other, typename TruncatePolicy_Other>
     constexpr metric(metric<base_unit_t, Magnitude_Other, OverflowPolicy_Other, TruncatePolicy_Other> const& other) 
-        : value{other.value * ipow(10, Magnitude_Other - Magnitude)}
+        : value{other.value * ipow(DECIMAL_ORDER, Magnitude_Other - Magnitude)}
     {
         overflow_policy_t::check(value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(value, Magnitude_Other, Magnitude);
@@ -39,7 +50,7 @@ struct metric {
 
     template <int32_t Magnitude_Other, typename OverflowPolicy_Other, typename TruncatePolicy_Other>
     constexpr metric(metric<base_unit_t, Magnitude_Other, OverflowPolicy_Other, TruncatePolicy_Other> const&& other) 
-        : value{other.value * ipow(10, Magnitude_Other - Magnitude)}
+        : value{other.value * ipow(DECIMAL_ORDER, Magnitude_Other - Magnitude)}
     {
         overflow_policy_t::check(other.value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(other.value, Magnitude_Other, Magnitude);
@@ -48,7 +59,7 @@ struct metric {
     template <int32_t Magnitude_Other, typename OverflowPolicy_Other, typename TruncatePolicy_Other>
     metric& operator=(metric<base_unit_t, Magnitude_Other, OverflowPolicy_Other, TruncatePolicy_Other> const& other)
     {
-        value = other.value * ipow(10, Magnitude_Other - Magnitude);
+        value = other.value * ipow(DECIMAL_ORDER, Magnitude_Other - Magnitude);
         overflow_policy_t::check(other.value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(other.value, Magnitude_Other, Magnitude);
     }
@@ -56,7 +67,7 @@ struct metric {
     template <int32_t Magnitude_Other, typename OverflowPolicy_Other, typename TruncatePolicy_Other>
     metric& operator=(metric<base_unit_t, Magnitude_Other, OverflowPolicy_Other, TruncatePolicy_Other>&& other)
     {
-        value = other.value * ipow(10, Magnitude_Other - Magnitude);
+        value = other.value * ipow(DECIMAL_ORDER, Magnitude_Other - Magnitude);
         overflow_policy_t::check(other.value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(other.value, Magnitude_Other, Magnitude);
     }
@@ -149,11 +160,16 @@ namespace duration {
 struct seconds_t {};
 
 //default policies for now.
-using picoseconds = detail::unit::metric<seconds_t, -12, default_overflow_policy_t, default_truncate_policy_t>;
-using nanoseconds = detail::unit::metric<seconds_t, -9, default_overflow_policy_t, default_truncate_policy_t>;
-using microseconds = detail::unit::metric<seconds_t, -6, default_overflow_policy_t, default_truncate_policy_t>;
-using milliseconds = detail::unit::metric<seconds_t, -3, default_overflow_policy_t, default_truncate_policy_t>;
-using seconds = detail::unit::metric<seconds_t, 0, default_overflow_policy_t, default_truncate_policy_t>;
+using picoseconds = detail::unit::metric<seconds_t, detail::unit::ORDER_PICO, 
+    default_overflow_policy_t, default_truncate_policy_t>;
+using nanoseconds = detail::unit::metric<seconds_t, detail::unit::ORDER_NANO, 
+    default_overflow_policy_t, default_truncate_policy_t>;
+using microseconds = detail::unit::metric<seconds_t, detail::unit::ORDER_MICRO, 
+    default_overflow_policy_t, default_truncate_policy_t>;
+using milliseconds = detail::unit::metric<seconds_t, detail::unit::ORDER_MILLI, 
+    default_overflow_policy_t, default_truncate_policy_t>;
+using seconds = detail::unit::metric<seconds_t, detail::unit::ORDER_BASE, 
+    default_overflow_policy_t, default_truncate_policy_t>;
 
 using ps = picoseconds;
 using ns = nanoseconds;
@@ -167,11 +183,16 @@ namespace frequency {
 
 struct hertz_t {};
 
-using millihertz = detail::unit::metric<hertz_t, -3, default_overflow_policy_t, default_truncate_policy_t>;
-using hertz = detail::unit::metric<hertz_t, 0, default_overflow_policy_t, default_truncate_policy_t>;
-using kilohertz = detail::unit::metric<hertz_t, 3, default_overflow_policy_t, default_truncate_policy_t>;
-using megahertz = detail::unit::metric<hertz_t, 6, default_overflow_policy_t, default_truncate_policy_t>;
-using gigahertz = detail::unit::metric<hertz_t, 9, default_overflow_policy_t, default_truncate_policy_t>;
+using millihertz = detail::unit::metric<hertz_t, detail::unit::ORDER_MILLI, 
+    default_overflow_policy_t, default_truncate_policy_t>;
+using hertz = detail::unit::metric<hertz_t, detail::unit::ORDER_BASE, 
+    default_overflow_policy_t, default_truncate_policy_t>;
+using kilohertz = detail::unit::metric<hertz_t, detail::unit::ORDER_KILO, 
+    default_overflow_policy_t, default_truncate_policy_t>;
+using megahertz = detail::unit::metric<hertz_t, detail::unit::ORDER_MEGA, 
+    default_overflow_policy_t, default_truncate_policy_t>;
+using gigahertz = detail::unit::metric<hertz_t, detail::unit::ORDER_GIGA, 
+    default_overflow_policy_t, default_truncate_policy_t>;
 
 using mHz = millihertz;
 using Hz = hertz;

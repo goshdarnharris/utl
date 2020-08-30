@@ -1095,7 +1095,8 @@ namespace fmt {
     constexpr void _format(formattable_as<const long long> auto arg, output& out, field const& f)
     {
         auto options = parse_format_options(f.spec, default_int_options);
-        format_ulong(out, static_cast<const unsigned long>(arg < 0 ? -arg : arg), arg < 0, options);
+        auto arg_long = static_cast<long>(arg);
+        format_ulong(out, static_cast<const unsigned long>(arg_long < 0 ? -arg_long : arg_long), arg < 0, options);
     }
 
     constexpr void _format(formattable_as<const unsigned long> auto arg, output& out, field const& f)
