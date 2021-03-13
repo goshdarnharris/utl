@@ -4,33 +4,34 @@
 
 #include <stdlib.h>
 #include <utl/traits.hh>
+#include <utl/tuple.hh>
 #include <utility>
 
 namespace utl {
 
+// // template <size_t... Ns>
+// // struct index_sequence {
+// //     using type = index_sequence<Ns...>;
+// // };
+
+// // namespace detail {
+
+// // template <size_t L, size_t I, size_t... Ns>
+// // struct index_sequence_impl : index_sequence_impl<L, I+1, Ns..., I> {};
+
+// // template <size_t L, size_t... Ns>
+// // struct index_sequence_impl<L, L, Ns...> : index_sequence<Ns...> {};
+
+// // } //namespace detail
+
+// // template <size_t L>
+// // using make_index_sequence = typename detail::index_sequence_impl<L,1,0>::type;
+
 // template <size_t... Ns>
-// struct index_sequence {
-//     using type = index_sequence<Ns...>;
-// };
-
-// namespace detail {
-
-// template <size_t L, size_t I, size_t... Ns>
-// struct index_sequence_impl : index_sequence_impl<L, I+1, Ns..., I> {};
-
-// template <size_t L, size_t... Ns>
-// struct index_sequence_impl<L, L, Ns...> : index_sequence<Ns...> {};
-
-// } //namespace detail
+// using index_sequence = std::index_sequence<Ns...>;
 
 // template <size_t L>
-// using make_index_sequence = typename detail::index_sequence_impl<L,1,0>::type;
-
-template <size_t... Ns>
-using index_sequence = std::index_sequence<Ns...>;
-
-template <size_t L>
-using make_index_sequence = std::make_index_sequence<L>;
+// using make_index_sequence = std::make_index_sequence<L>;
 
 template <size_t N, typename... Ts>
 struct get_type;
@@ -87,9 +88,16 @@ struct type_list {
 
     template <size_t N>
     using get_t = get_t<N,Ts...>;
+
+    template <std::size_t N>
+        requires (N < length)
+    using type = typename get_type<N,Ts...>::type;
+
+    template <typename T>
+    using append = type_list<Ts...,T>;
+
+    using tuple_t = utl::tuple<Ts...>;
 };
-
-
 
 
 } //namespace utl

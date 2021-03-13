@@ -6,17 +6,7 @@
 #include "utl/utl.hh"
 #include "utl/string.hh"
 
-TEST_GROUP(String) {
-
-void setup(void)
-{
-}
-
-void teardown(void)
-{
-}
-
-};
+TEST_GROUP(String) {};
 
 TEST(String,Construction)
 {
@@ -32,7 +22,9 @@ TEST(String,Constexpr)
 
 TEST(String,ConstexprArray)
 {
+    //NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
     constexpr const char str[6] = "hello";
+    //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     constexpr utl::string foo{str};
     CHECK(foo.size() == 5);
     utl::maybe_unused(foo);
@@ -54,7 +46,9 @@ TEST(String,LiteralStringLengthDeduction)
 
 TEST(String,ConstantStringLengthDeduction)
 {
+    //NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
     const char str[6] = "hello";
+    //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     utl::string foo{str};
     CHECK(foo.size() == 5);
     utl::maybe_unused(foo);
@@ -63,7 +57,7 @@ TEST(String,ConstantStringLengthDeduction)
 TEST(String,ConstPointer)
 {
     const char* str = "hello";
-    utl::string<5> foo{str};
+    utl::string<5> foo{str}; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
     CHECK(foo.size() == 5);
 }
 
@@ -72,7 +66,7 @@ TEST(String,StringViewConversion)
     utl::string foo{"hello"};
     utl::string_view bar{foo};
     CHECK(bar.data() == foo.data());
-    CHECK(foo.compare(bar));
+    CHECK_EQUAL(0, foo.compare(bar));
 }
 
 TEST(String,Substr)
@@ -81,7 +75,7 @@ TEST(String,Substr)
     auto bar = foo.substr(1,2);
     CHECK(bar.length() == 2);
 
-    auto baz = foo.substr(6,2);
+    auto baz = foo.substr(6,2); //NOLINT(cppcoreguidelines-avoid-magic-numbers)
     CHECK(baz.length() == 1);
     CHECK(strcmp(baz.data(), "o") == 0);
 }
@@ -143,9 +137,9 @@ TEST(String,Compare)
     auto a = foo.compare("hello");
     auto b = foo.compare("he");
     auto c = foo.compare("llothere");
-    CHECK(a);
-    CHECK(!b);
-    CHECK(!c);
+    CHECK(a == 0);
+    CHECK(b > 0);
+    CHECK(c < 0);
 }
 
 TEST(String,ConstexprCompare)
@@ -154,7 +148,7 @@ TEST(String,ConstexprCompare)
     constexpr auto a = foo.compare("hello");
     constexpr auto b = foo.compare("he");
     constexpr auto c = foo.compare("llothere");
-    CHECK(a);
-    CHECK(!b);
-    CHECK(!c);
+    CHECK(a == 0);
+    CHECK(b > 0);
+    CHECK(c < 0);
 }

@@ -7,10 +7,7 @@
 #include <utl/traits.hh>
 #include <utl/logger.hh>
 
-TEST_GROUP(Traits) {
-    void setup(void) {}
-    void teardown(void) {}
-};
+TEST_GROUP(Traits) {};
 
 TEST(Traits,is_same)
 {

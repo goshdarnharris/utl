@@ -5,7 +5,6 @@
 #include "packages/libawful/include/awful.hpp"
 #include "utl/test-types.hh"
 #include "utl/utl.hh"
-#include "utl/names.hh"
 #include <utl/logger.hh>
 #include <utl/format.hh>
 #include <utl/string.hh>
@@ -1571,7 +1570,7 @@ TEST(Format, CustomFormatTo) {
 
   char buf[10] = {};
   auto end = &*utl::format_into(utl::span{buf, 10}, "{}", Answer());
-  CHECK_EQUAL(end, buf + 2);
+  CHECK_EQUAL(end, buf + 2); //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   auto view = utl::string_view{utl::ranges::begin(buf),end};
   CHECK_EQUAL("42"_sv, view);
 }

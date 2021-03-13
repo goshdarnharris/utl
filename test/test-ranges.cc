@@ -7,17 +7,14 @@
 #include <utl/ranges.hh>
 #include <utl/logger.hh>
 
-TEST_GROUP(Ranges) {
-    void setup(void) {}
-    void teardown(void) {}
-};
+TEST_GROUP(Ranges) {};
 
 TEST(Ranges,Enumerate)
 {
-    uint8_t arr[3] = {1,2,3};
+    uint8_t arr[3] = {1,2,3}; //NOLINT(cppcoreguidelines-avoid-c-arrays)
     for(auto&& [idx,val] : utl::ranges::enumerate(arr)) {
         CHECK(idx == val - 1);
-        CHECK(arr[idx] == val);
+        CHECK(arr[idx] == val); //NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
     }
 }
 

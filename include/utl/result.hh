@@ -1,12 +1,20 @@
 #ifndef UTL_RESULT_HH_
 #define UTL_RESULT_HH_
 
+#define USE_UTL_RESULT2
+
+#ifdef USE_UTL_RESULT2
+#include <utl/result2.hh>
+#else
+
 #include <stdint.h>
 #include <utility>
 #include <bits/refwrap.h>
 #include <type_traits>
 #include "utl/error.hh"
 #include "utl/utl.hh"
+
+
 
 namespace utl {
 
@@ -17,6 +25,9 @@ struct in_place_t {};
 namespace detail {
     struct uninitialized_tag{};
     struct void_value_t{};
+
+    template <typename From, typename To>
+    concept only_convertible_to = convertible_to<From,To> and not same_as<From,To>;
 }
 
 //TODO: maybe refactor the different constructors/operators & void support
@@ -155,6 +166,8 @@ struct storage_nontrivial_destruct {
     bool m_has_value;
 
     storage_nontrivial_destruct() = delete;
+    constexpr storage_nontrivial_destruct(storage_nontrivial_destruct const&) = default;
+    constexpr storage_nontrivial_destruct& operator=(storage_nontrivial_destruct const&) = default;
 
     template <typename U>
     constexpr storage_nontrivial_destruct(value_tag, U&& value) 
@@ -531,12 +544,6 @@ template <typename T = void, typename E = error_code,
     template<class> typename ErrorObserver = default_observer_policy
 >
 class [[nodiscard]] result {
-protected:
-    using value_traits = traits<T>;
-    using error_traits = traits<E>;
-    using value_observer_t = ValueObserver<T>; 
-    using error_observer_t = ErrorObserver<E>;
-
     using storage_predicate = storage_predicate<T, E>;
 
     static_assert(storage_predicate::value_storable, "cannot store value type");
@@ -544,8 +551,13 @@ protected:
 
     using storage_class_t = select_storage_t<T,E>;
     storage_class_t m_storage;
-
+protected:
+    using value_traits = traits<T>;
+    using error_traits = traits<E>;
+    using value_observer_t = ValueObserver<T>; 
+    using error_observer_t = ErrorObserver<E>;
 public:
+    using this_t = result<T,E,ValueObserver,ErrorObserver>;
     using value_t = typename storage_class_t::value_t;
     using error_t = typename storage_class_t::error_t;
     //A result is only default constructible if its value type is void.
@@ -555,70 +567,73 @@ public:
     //with other functions. We allow this because we do not allow E to be
     //void.
     // template <typename U = T, std::enable_if_t<traits<U>::is_void, int*> = nullptr>
+
+    constexpr result() requires (not traits<value_t>::is_void) = delete;
+
     constexpr result() 
-        requires traits<T>::is_void 
+        requires traits<value_t>::is_void 
       : m_storage{value_tag{}, detail::void_value_t{}} 
     {}
 
-    // template <typename U = T, std::enable_if_t<traits<U>::is_void, int*> = nullptr>
     constexpr result(value_tag) 
-        requires traits<T>::is_void
+        requires traits<value_t>::is_void
       : m_storage{value_tag{}, detail::void_value_t{}}
     {}
     
-    // template <typename U = T, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
-    template <typename U>
-    constexpr result(value_tag, U&& value) 
-        requires (!traits<T>::is_void) and std::is_convertible_v<U,T>
-      : m_storage{value_tag{}, std::forward<U>(value)}
+    constexpr result(value_tag, convertible_to<value_t> auto&& value) 
+        requires (!traits<value_t>::is_void)
+      : m_storage{value_tag{}, std::forward<decltype(value)>(value)}
     {}
 
-    // template <typename U = T, std::enable_if_t<!traits<U>::is_void, int*> = nullptr>
     constexpr result(in_place_t, value_tag)
-        requires (!traits<T>::is_void)
+        requires (!traits<value_t>::is_void)
       : m_storage{in_place_t{}, value_tag{}} 
     {}
     
-    template <typename... Args>
-    constexpr result(in_place_t, value_tag, Args&&... args) 
-      : m_storage{in_place_t{}, value_tag{}, std::forward<Args>(args)...} {}
+    constexpr result(in_place_t, value_tag, auto&&... args) 
+      : m_storage{in_place_t{}, value_tag{}, std::forward<decltype(args)>(args)...} {}
 
-    template <typename U>
-    constexpr result(error_tag, U&& error)
-        requires std::is_convertible_v<U,E>
-      : m_storage{error_tag{}, std::forward<U>(error)}
+    constexpr result(error_tag, convertible_to<error_t> auto&& error)
+      : m_storage{error_tag{}, std::forward<decltype(error)>(error)}
     {}
 
     constexpr result(in_place_t, error_tag)
       : m_storage{in_place_t{}, error_tag{}}
     {}    
 
-    template <typename... Args>
-    constexpr result(in_place_t, error_tag, Args&&... args) 
-      : m_storage{in_place_t{}, error_tag{}, std::forward<Args>(args)...}
+    constexpr result(in_place_t, error_tag, auto&&... args) 
+      : m_storage{in_place_t{}, error_tag{}, std::forward<decltype(args)>(args)...}
     {}
+
+    
 
     //We only want to enable this and the next constructor if T and E cannot be
     //converted between each other (that is, if it is valid to say T foo{E} or E foo{T},
     //we want to disable these constructors). If we don't, then saying result<T,E>{T}
     //will be ambiguous - you could end up with a result that's holding a T, or a result
     //that's holding an E. Instead of allowing that ambiguity, we make it illegal.
+    
     template <typename U>
-    constexpr result(U&& value) 
-        requires storage_predicate::enable_implicit_construction and std::is_convertible_v<U,T>
-      : m_storage{value_tag{}, std::forward<U>(value)} 
+    static constexpr bool enable_converting_value_constructor = storage_predicate::enable_implicit_construction
+            and std::is_convertible_v<U,value_t> and (not std::is_same_v<U,this_t>);
+    template <typename U>
+    static constexpr bool enable_converting_error_constructor = storage_predicate::enable_implicit_construction
+            and std::is_convertible_v<U,error_t> and (not std::is_same_v<U,this_t>);
+
+    constexpr result(auto&& value) //NOLINT(bugprone-forwarding-reference-overload)
+        requires enable_converting_value_constructor<decltype(value)>
+      : m_storage{value_tag{}, std::forward<decltype(value)>(value)} 
+    {}
+ 
+    constexpr result(auto&& error) //NOLINT(bugprone-forwarding-reference-overload)
+        requires enable_converting_error_constructor<decltype(error)>
+      : m_storage{error_tag{}, std::forward<decltype(error)>(error)}
     {}
 
-    template <typename U>
-    constexpr result(U&& error) 
-        requires storage_predicate::enable_implicit_construction and std::is_convertible_v<U,E>
-      : m_storage{error_tag{}, std::forward<U>(error)}
-    {}
+    [[nodiscard]] constexpr explicit operator bool() const { return has_value(); }
 
-    constexpr explicit operator bool() const { return has_value(); }
-
-    constexpr bool has_value() const { return m_storage.m_has_value; }
-    constexpr bool is_error() const { return !has_value(); }
+    [[nodiscard]] constexpr bool has_value() const { return m_storage.m_has_value; }
+    [[nodiscard]] constexpr bool is_error() const { return !has_value(); }
 
     constexpr auto& value() & {
         //fixme: if constant evaluated, do a constexpr check of has_value.
@@ -661,16 +676,16 @@ public:
     //result contains a value before trying to extract something for it -
     //and if a user is calling value() or error() on a result, they
     //definitely haven't checked whether it contains a value or not. Put
-    //another way, it's impossible to check if a result contains
-    //something _and_ extract the value if it's an rvalue.
-    constexpr auto value() && -> const typename value_observer_t::return_t = delete;
-    constexpr auto error() && -> const typename error_observer_t::return_t = delete;
+    //another way, the only thing the user should do with an rvalue result
+    //is to check whether it has a value or not, or visit it.
+    constexpr auto value() && -> typename value_observer_t::return_t = delete;
+    constexpr auto error() && -> typename error_observer_t::return_t = delete;
 
     template <typename F>
     using visitor_invoke_result_t = std::invoke_result_t<F, value_t&>;
     
     template <typename F>
-    auto visit(F visitor) -> visitor_invoke_result_t<F> {
+    auto accept(F visitor) -> visitor_invoke_result_t<F> {
         if(has_value()) {
             if constexpr (std::is_same_v<visitor_invoke_result_t<F>, void>) {
                 visitor(value());
@@ -681,7 +696,7 @@ public:
     }
 
     template <typename F>
-    auto visit(const F visitor) const -> visitor_invoke_result_t<F> {
+    auto accept(const F visitor) const -> visitor_invoke_result_t<F> {
         if(has_value()) {
             if constexpr (std::is_same_v<visitor_invoke_result_t<F>, void>) {
                 visitor(value());
@@ -753,5 +768,7 @@ static constexpr auto unwrap_pointer(T&& res) -> std::remove_reference_t<decltyp
 //TODO: implement some compile-time tests here with static asserts.
 
 } //namespace utl
+
+#endif //USE_UTL_RESULT2
 
 #endif //UTL_RESULT_HH_

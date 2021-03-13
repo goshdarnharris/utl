@@ -59,20 +59,21 @@ TEST(Names,ConstLValueReference)
 TEST(Names,ConstexprRValueReference)
 {    
     constexpr utl::string_view foo{"hello"};
-    auto name = utl::get_type_name(std::move(foo));
+    auto name = utl::get_type_name(std::move(foo)); //NOLINT(performance-move-const-arg)
     CHECK_EQUAL("utl::string_view"_sv, name);
 }
 
 TEST(Names,RValueReference)
 {    
     utl::string_view foo{"hello"};
-    auto name = utl::get_type_name(std::move(foo));
+    auto name = utl::get_type_name(std::move(foo)); //NOLINT(performance-move-const-arg)
     CHECK_EQUAL("utl::string_view"_sv, name);
 }
 
 TEST(Names,ConstRValueReference)
 {    
     utl::string_view foo{"hello"};
+    //NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast,performance-move-const-arg)
     auto name = utl::get_type_name(const_cast<const utl::string_view&&>(std::move(foo)));
     CHECK_EQUAL("utl::string_view"_sv, name);
 }

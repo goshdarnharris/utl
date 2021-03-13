@@ -66,7 +66,7 @@ def configure(context):
     context.builder.append_cflag("-DCPPUTEST_USE_STD_C_LIB=1")
     context.builder.append_cflag("-DCPPUTEST_USE_STD_CPP_LIB=0")
     context.builder.append_cflag("-DCPPUTEST_USE_MEM_LEAK_DETECTION=0")
-    context.builder.append_cflag("-std=c++2a")
+    context.builder.append_cflag("-std=c++20")
     context.builder.append_cflag("-Werror")
     context.builder.append_cflag("-Weverything")
     # relax some of the extreme constraints
@@ -141,13 +141,13 @@ def configure(context):
     context.builder.append_lflag(context.format("-Wl,-Map=build/{ARCH}/{MODE}/output.map"))
 
     setattr(context, "analyzer", None)
-    context.analyzer = source.builder.clang_tidy.Analyzer()
+    context.analyzer = source.builder.clang_tidy.Analyzer(capture=False)
 
 @Frontend.rule(["build/{ARCH}/{MODE}/*.o"],["build/{ARCH}/{MODE}/unittest"])
 def link(context,inputs,outputs):
     context.builder.link_executable(inputs[0],outputs[0])
 @Frontend.rule(["%.{cc,cpp}"],["build/{ARCH}/{MODE}/{0}.o","build/{ARCH}/{MODE}/{0}.d"])
-def compile_source(context,inputs,outputs):
+def compile_analyze_source(context,inputs,outputs):
     def do_it():
         context.builder.compile_source(inputs[0],outputs[0])    
         context.builder.perform_search(context,transform,outputs[1])
@@ -156,4 +156,21 @@ def compile_source(context,inputs,outputs):
             do_it()
     else: 
         do_it()
-        # context.analyzer.analyze_source(inputs[0])
+
+        if "src/" in str(inputs[0]):
+            context.analyzer.analyze_source(inputs[0])
+        elif "test/" in str(inputs[0]):
+            checks = [
+                "-cppcoreguidelines-avoid-magic-numbers"
+            ]
+
+            if "test-format.cc" in str(inputs[0]):
+                checks += [
+                    "-cppcoreguidelines-pro-bounds-array-to-pointer-decay",
+                    "-cppcoreguidelines-avoid-c-arrays",
+                    "-readability-qualified-auto"
+                ]
+
+            with context.analyzer.push_checks(*checks):
+                context.analyzer.analyze_source(inputs[0])
+

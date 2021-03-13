@@ -5,17 +5,7 @@
 #include "utl/test-types.hh"
 #include "utl/utl.hh"
 
-TEST_GROUP(Tracked) {
-
-void setup(void)
-{
-}
-
-void teardown(void)
-{
-}
-
-};
+TEST_GROUP(Tracked) {};
 
 TEST(Tracked,DefaultConstruction)
 {
@@ -42,7 +32,7 @@ TEST(Tracked, RegularConstruction)
 TEST(Tracked, CopyConstruction)
 {
     utl::tracked a{};
-    utl::tracked b{a};
+    utl::tracked b{a}; //NOLINT(performance-unnecessary-copy-initialization)
 
     CHECK(!b.default_constructed());
     CHECK(!b.regular_constructed());

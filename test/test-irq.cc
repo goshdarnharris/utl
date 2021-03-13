@@ -4,7 +4,9 @@
 #include <utl/test-types.hh>
 #include <utl/utl.hh>
 #include <utl/names.hh>
+#include <utl/system-error.hh>
 #include <type_traits>
+#include <atomic>
 
 // template <typename H, size_t IRQn>
 // concept has_isr = requires(const H* ptr) {
@@ -100,6 +102,7 @@
 //     void isr(auto&& irq) const volatile
 //     {
 //         //do_things_here
+//         utl::maybe_unused(irq);
 //         data = 5;
 //         utl::log(utl::get_type_name(data));
 //         utl::log(utl::type_name<decltype(data)>);
@@ -128,7 +131,7 @@ using irqn_t = size_t;
 using handler_t = void(*)(void);
 inline constexpr size_t VECTOR_TABLE_SIZE = 10;
 
-[[noreturn]] static void default_handler() { while(true); }
+[[noreturn]] static void default_handler() { while(true) {} }
 
 //FIXME: in combination with a richer irqn type, maybe there's
 //a richer vector table type.

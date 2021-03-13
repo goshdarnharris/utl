@@ -9,10 +9,7 @@
 #include <utl/ranges.hh>
 #include <utl/logger.hh>
 
-TEST_GROUP(Sandbox) {
-    void setup(void) {}
-    void teardown(void) {}
-};
+TEST_GROUP(Sandbox) {};
 
 template <typename T>
 struct S {

@@ -9,38 +9,40 @@
 
 TEST_GROUP(tuple) {};
 
+static constexpr float float_value = 1.1f;
+
 TEST(tuple,create)
 {
     using tuple_t = utl::tuple<int,float,bool>;
-    tuple_t foo{0, 1.1f, false};
+    tuple_t foo{0, float_value, false};
     utl::maybe_unused(foo);
 }
 
 TEST(tuple,get)
 {
     using tuple_t = utl::tuple<int,float,bool>;
-    tuple_t foo{0, 1.1f, false};
+    tuple_t foo{0, float_value, false};
     
     CHECK(utl::get<0>(foo) == 0);
-    CHECK(utl::get<1>(foo) == 1.1f);
+    CHECK(utl::get<1>(foo) == float_value);
     CHECK(utl::get<2>(foo) == false);
 }
 
 TEST(tuple,rvalue_tuple)
 {
     using tuple_t = utl::tuple<int,float,bool>;    
-    CHECK(utl::get<0>(tuple_t{0, 1.1f, false}) == 0);
-    CHECK(utl::get<1>(tuple_t{0, 1.1f, false}) == 1.1f);
-    CHECK(utl::get<2>(tuple_t{0, 1.1f, false}) == false);
-    CHECK((utl::is_same_v<int&&  ,decltype(utl::get<0>(tuple_t{0, 1.1f, false}))>));
-    CHECK((utl::is_same_v<float&&,decltype(utl::get<1>(tuple_t{0, 1.1f, false}))>));
-    CHECK((utl::is_same_v<bool&& ,decltype(utl::get<2>(tuple_t{0, 1.1f, false}))>));
+    CHECK(utl::get<0>(tuple_t{0, float_value, false}) == 0);
+    CHECK(utl::get<1>(tuple_t{0, float_value, false}) == float_value);
+    CHECK(utl::get<2>(tuple_t{0, float_value, false}) == false);
+    CHECK((utl::is_same_v<int&&  ,decltype(utl::get<0>(tuple_t{0, float_value, false}))>));
+    CHECK((utl::is_same_v<float&&,decltype(utl::get<1>(tuple_t{0, float_value, false}))>));
+    CHECK((utl::is_same_v<bool&& ,decltype(utl::get<2>(tuple_t{0, float_value, false}))>));
 }
 
 TEST(tuple,rvalue_contents_values)
 {
     using tuple_t = utl::tuple<int&,float&&,bool>;    
-    int a = 5;
+    int a = 5; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
 
     tuple_t foo{a,100.0f,false};
 
@@ -52,7 +54,7 @@ TEST(tuple,rvalue_contents_values)
 TEST(tuple,rvalue_contents_types)
 {
     using tuple_t = utl::tuple<int&,float&&,bool>;    
-    int a = 5;
+    int a = 5; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
 
     tuple_t foo{a,100.0f,false};
 
@@ -64,7 +66,7 @@ TEST(tuple,rvalue_contents_types)
 TEST(tuple,get_types)
 {
     using tuple_t = utl::tuple<int,float,bool>;
-    tuple_t foo{0, 1.1f, false};
+    tuple_t foo{0, float_value, false};
     
     CHECK((utl::is_same_v<int&  ,decltype(utl::get<0>(foo))>));
     CHECK((utl::is_same_v<float&,decltype(utl::get<1>(foo))>));
@@ -75,8 +77,8 @@ TEST(tuple,references)
 {
     using tuple_t = utl::tuple<int&,float&,bool&>;
 
-    int a = 5;
-    float b = 3.4f;
+    int a = 5; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
+    float b = 3.4f; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
     bool c = true;
 
     tuple_t foo{a,b,c};
@@ -105,8 +107,8 @@ TEST(tuple,apply)
 {
     using tuple_t = utl::tuple<int&,float&,bool&>;
 
-    int a = 5;
-    float b = 3.4f;
+    int a = 5; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
+    float b = 3.4f; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
     bool c = true;
 
     tuple_t foo{a,b,c};

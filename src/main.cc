@@ -5,12 +5,12 @@
 #include <CppUTest/CommandLineTestRunner.h>
 
 struct printf_logger {
-    utl::result<void> write(utl::string_view const& s) const {
-        auto* substr = new char[s.size()+1];
+    static utl::result<void> write(utl::string_view const& s) {
+        auto* substr = new char[s.size()+1]; //NOLINT(cppcoreguidelines-owning-memory)
         strncpy(substr, s.data(), s.size());
         substr[s.size()] = '\0'; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         printf("%s",substr);
-        delete[] substr;
+        delete[] substr; //NOLINT(cppcoreguidelines-owning-memory)
         return utl::success();
     }
 };

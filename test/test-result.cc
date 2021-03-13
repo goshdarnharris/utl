@@ -22,7 +22,7 @@ struct Foo {
 
     utl::result<uint32_t> move_a(bool fail) {
         if(fail) return utl::system_error::UNKNOWN;
-        return std::move(a);
+        return std::move(a); //NOLINT(performance-move-const-arg)
     }
 };
 
@@ -33,8 +33,9 @@ struct nontrivial_destructor {
     nontrivial_destructor& operator=(nontrivial_destructor&& that) = default;
     nontrivial_destructor() = default;
 
-    ~nontrivial_destructor() {
-        // printf("nontrivial destructor called\n");
+    ~nontrivial_destructor() //NOLINT(modernize-use-equals-default)
+    {
+        
     }
 };
 
@@ -42,7 +43,8 @@ struct nontrivial_copy_assign {
     uint8_t data;
 
     nontrivial_copy_assign(nontrivial_copy_assign const& that) = default;
-    nontrivial_copy_assign& operator=(nontrivial_copy_assign const& that) {
+    nontrivial_copy_assign& operator=(nontrivial_copy_assign const& that) //NOLINT(modernize-use-equals-default)
+    {
         data = that.data;
         return *this;
     }
@@ -55,6 +57,7 @@ struct nontrivial_copy_assign {
 struct nontrivial_copy_construct {
     uint8_t data;
 
+    //NOLINTNEXTLINE(modernize-use-equals-default)
     nontrivial_copy_construct(nontrivial_copy_construct const& that) : data{that.data} {}
     nontrivial_copy_construct& operator=(nontrivial_copy_construct const& that) = default;
     nontrivial_copy_construct(nontrivial_copy_construct&& that) = default;
@@ -69,8 +72,9 @@ struct nontrivial_move_assign {
     nontrivial_move_assign(nontrivial_move_assign const& that) = default;
     nontrivial_move_assign& operator=(nontrivial_move_assign const& that) = default;
     nontrivial_move_assign(nontrivial_move_assign&& that) = default;
-    nontrivial_move_assign& operator=(nontrivial_move_assign&& that) {
-        data = std::move(that.data);
+    nontrivial_move_assign& operator=(nontrivial_move_assign&& that) 
+    {
+        data = std::move(that.data); //NOLINT(performance-move-const-arg)
         return *this;
     }
     nontrivial_move_assign() = default;
@@ -82,27 +86,18 @@ struct nontrivial_move_construct {
 
     nontrivial_move_construct(nontrivial_move_construct const& that) = default;
     nontrivial_move_construct& operator=(nontrivial_move_construct const& that) = default;
+    //NOLINTNEXTLINE(performance-move-const-arg)
     nontrivial_move_construct(nontrivial_move_construct&& that) : data{std::move(that.data)} {}
     nontrivial_move_construct& operator=(nontrivial_move_construct&& that) = default;
     nontrivial_move_construct() = default;
     ~nontrivial_move_construct() = default;
 };
 
-TEST_GROUP(Result) {
-
-void setup(void)
-{
-}
-
-void teardown(void)
-{
-}
-
-};
+TEST_GROUP(Result) {};
 
 TEST(Result,ValueReturn)
 {
-    utl::result<uint32_t> res{10u};
+    utl::result<uint32_t> res{10u}; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
     CHECK(static_cast<bool>(res));
     CHECK(res.has_value());
     CHECK(res.value() == 10u);
@@ -130,7 +125,7 @@ TEST(Result,ConstexprResult)
 
 TEST(Result,ReferenceResult)
 {
-    Foo obj{10u};
+    Foo obj{10u}; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
     utl::result<uint32_t&> res = obj.get_a(false);
 
     CHECK(static_cast<bool>(res));
@@ -138,7 +133,7 @@ TEST(Result,ReferenceResult)
     CHECK(res.value() == 10u);
 
     //Assign through the reference
-    res.value() = 20u;
+    res.value() = 20u; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
 
     CHECK(res.value() == 20u);
     CHECK(res.value() == obj.a);
@@ -208,7 +203,7 @@ TEST(Result,VoidValueWithValue)
 
 TEST(Result,VoidValueWithTag)
 {
-    utl::result<void> res{utl::value_tag{}};
+    utl::result<void> res{utl::value_tag};
     CHECK(res.has_value());
 }
 
@@ -220,20 +215,20 @@ TEST(Result,VoidValueWithError)
 
 TEST(Result,InPlaceValue)
 {
-    utl::result<Foo> res{utl::in_place_t{}, utl::value_tag{}, 10u};
+    utl::result<Foo> res{std::in_place, utl::value_tag, 10u}; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
     CHECK(res.has_value());
     CHECK(res.value().a == 10);
 }
 
 TEST(Result,InPlaceValueNoncopyable)
 {
-    utl::result<awful::noncopyable> res{utl::in_place_t{}, utl::value_tag{}, awful::noncopyable{}};
+    utl::result<awful::noncopyable> res{std::in_place, utl::value_tag, awful::noncopyable{}};
     CHECK(res.has_value());
 }
 
 TEST(Result,InPlaceError)
 {
-    utl::result<Foo> res{utl::in_place_t{}, utl::error_tag{}, utl::system_error::UNKNOWN};
+    utl::result<Foo> res{std::in_place, utl::error_tag, utl::system_error::UNKNOWN};
     CHECK(!res.has_value());
 }
 

@@ -13,6 +13,7 @@ inline constexpr string_view probe_name = "utl::detail::types::probe_type"_sv;
 template <typename T>
 constexpr string_view get_function_name()
 {
+    //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     constexpr string_view name{__PRETTY_FUNCTION__};
     return name;
 }
@@ -95,7 +96,7 @@ template <auto V>
 constexpr bool is_valid_enum_value()
 {
     constexpr auto name = get_enum_name<V>();
-    return detail::enums::is_numeric_char(name.data()[0]);
+    return detail::enums::is_numeric_char(name[0]);
 }
 
 template <auto V> requires is_enum_v<decltype(V)>

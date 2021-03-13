@@ -47,11 +47,11 @@ public:
     constexpr try_t(pointer_tag, T unboxable) : m_unboxable{*unboxable} {}
     constexpr try_t(rvalue_ref_tag, T unboxable) : m_unboxable{unboxable} {}
 
-    template <typename U = T>
-    constexpr try_t(U&& unboxable) : try_t{select_constructor{}, std::forward<U>(unboxable)} {}
+    template <same_as<T> U>
+    constexpr try_t(U&& unboxable) : try_t{select_constructor{}, std::forward<U>(unboxable)} {} //NOLINT(bugprone-forwarding-reference-overload)
 
-    constexpr bool unboxable_has_value() const { return m_unboxable.has_value(); }
-    constexpr arg_t get_unboxable_value() const 
+    [[nodiscard]] constexpr bool unboxable_has_value() const { return m_unboxable.has_value(); }
+    [[nodiscard]] constexpr arg_t get_unboxable_value() const 
     {
         if constexpr(is_pointer) {
             return &m_unboxable.value();
@@ -122,12 +122,7 @@ template <class T>
 using accessor_observer_policy = cast_observer_policy<T, typename T::underlying_t>;
 
 template <class T>
-using result_t = result<
-    accessor<T>,
-    error_code,
-    accessor_observer_policy,
-    default_observer_policy
->;
+using result_t = result<T>;
 
 template <typename T>
 static constexpr bool is_try = false;
@@ -188,25 +183,30 @@ constexpr auto get_value(T&& try_v)-> typename T::arg_t
     return try_v.get_unboxable_value();
 }
 
-template <typename... Ts>
-using select_constructor_t = std::conditional_t<try_unboxing<Ts...>, error_tag, value_tag>;
+template <typename T>
+using unboxed_t = std::result_of<decltype(get_value<T>)(T)>;
 
-} //namespace detail
+template <typename... Ts>
+using select_constructor_t = std::conditional_t<try_unboxing<Ts...>, error_tag_t, value_tag_t>;
+
+} //namespace detailpling
 
 //TODO: would it be possible to make this type a set of policies on result?
 template <class T>
-class construct : public detail::result_t<T> {
-    using detail::result_t<T>::m_storage; 
-    using accessor_t = typename detail::result_t<T>::value_t;
+class construct : public result<T> {
+
+    static constexpr bool do_validation = requires(T&& v) { v.validate() -> result<void>; };
 
     template <typename... Args>
-    constexpr construct(value_tag, Args&&... args)
-        : detail::result_t<T>{in_place_t{}, value_tag{}, std::forward<Args>(args)...}
+    constexpr construct(value_tag_t, Args&&... args)
+        requires requires() { T{std::forward<Args>(args)...}; }
+        : result<T>{std::in_place, value_tag, std::forward<Args>(args)...}
     {}
 
     template <typename... Args>
-    constexpr construct(error_tag, Args&&... args)
-        : detail::result_t<T>{in_place_t{}, error_tag{}, utl::system_error::UNKNOWN}
+    constexpr construct(error_tag_t, Args&&... args)
+        // requires requires() { T{detail::get_value<Args>(std::forward<Args>(args))...}; }
+        : result<T>{std::in_place, error_tag, utl::system_error::UNKNOWN}
     { 
         //FIXME: can probably refactor this as a collection of constexpr_if.
         //FIXME: can probably discover the arguments of the constructor and compare
@@ -214,31 +214,28 @@ class construct : public detail::result_t<T> {
         //   the type_t tag.
         bool can_construct = (detail::is_value_or_unboxable<Args>(std::forward<Args>(args)) and ...);
         //uh... constructability policy? what would that even do?
-        //would that be a step in decoupling try_t from construct completely?
+        //would that be a step in decou try_t from construct completely?
         if(!can_construct) {
             return;
         }
 
-        m_storage.emplace(value_tag{}, detail::get_value<Args>(std::forward<Args>(args))...);    
+        result<T>::emplace(value_tag, detail::get_value<Args>(std::forward<Args>(args))...);    
     }
 
 public:
-    using detail::result_t<T>::value;
-    using value_t = typename accessor_t::underlying_t;
-    using error_t = typename detail::result_t<T>::error_t;
 
     constexpr construct()
-        : detail::result_t<T>{in_place_t{}, value_tag{}}
+        : result<T>{std::in_place, value_tag}
     {
         //FIXME: validate-or-not should probably be a policy, and I should probably have
         //  two separate default types representing validate and do-not-validate.
         //Or... does it make more sense to decide based on the argument? If this type
         //  enforces one or the other, then the construct type could be placing
         //  extra invariants on the boxed type. Which would be bad.
-        if constexpr(accessor_t::do_validation) {
-            auto res = m_storage.m_value.validate();
+        if constexpr(do_validation) {
+            auto res = result<T>::value().validate();
             if(!res) {
-                m_storage.emplace(error_tag{}, res.error());
+                result<T>::emplace(error_tag, res.error());
             }
         }
     }
@@ -247,17 +244,17 @@ public:
     constexpr construct(Args&&... args)
         : construct{detail::select_constructor_t<Args...>{}, std::forward<Args>(args)...}
     {
-        if(detail::result_t<T>::is_error()) return; //should invoke an error policy
+        if(result<T>::is_error()) return; //should invoke an error policy
 
         //FIXME: validate-or-not should probably be a policy, and I should probably have
         //  two separate default types representing validate and do-not-validate.
         //Or... does it make more sense to decide based on the argument? If this type
         //  enforces one or the other, then the construct type could be placing
         //  extra invariants on the boxed type. Which would be bad.
-        if constexpr(accessor_t::do_validation) {
-            auto res = m_storage.m_value.validate();
+        if constexpr(do_validation) {
+            auto res = result<T>::value().validate();
             if(!res) {
-                m_storage.emplace(error_tag{}, res.error());
+                result<T>::emplace(error_tag, res.error());
             }
         }
     }

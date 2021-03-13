@@ -5,8 +5,10 @@
 #include <utl/type-list.hh>
 #include <utl/construct.hh>
 #include <utl/system-error.hh>
+#include <utl/format.hh>
 #include <stdio.h>
 #include <string.h>
+#include <utility>
 #include "utl-platform.hh"
 
 namespace utl {
@@ -26,10 +28,12 @@ detail::output_base const * get_global_output();
 
 struct push_output {
     push_output(detail::output_base const* output);
-    template <typename T, std::enable_if_t<utl::is_result_v<std::remove_reference_t<T>>, int*> = nullptr>
-    push_output(T&& maybe_output) 
-        : push_output{utl::unwrap_pointer(maybe_output)}
-    {}
+    // template <typename T, std::enable_if_t<utl::is_result_v<std::remove_reference_t<T>>, int*> = nullptr>
+    // push_output(T&& maybe_output) 
+    //     : push_output{utl::unwrap_pointer(maybe_output)}
+    // {}
+    push_output(push_output const&) = delete;
+    push_output& operator=(push_output const&) = delete;
     ~push_output();
 private:
     detail::output_base const * m_previous_output;
@@ -55,35 +59,41 @@ struct output : detail::output_base {
 #pragma clang diagnostic ignored "-Wformat-security"
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
 
+
 //TODO: automatically convert error_codes to their strings.
 template <typename... Args>
-void log(utl::string_view const& format, Args&&... args) {
+void log(utl::string_view format, Args&&... args) {
     if(format.size() == 0 or format.size() == npos) return;
     static_assert(utl::platform::config::use_float || 
         (!contains_v<type_list<Args...>,float> && !contains_v<type_list<Args...>,double>),
         "floating point printing is disabled!");
 
-    char buffer[512] = {0};
-    uint32_t length;
+    constexpr size_t buffer_size = 512;
+    auto buffer = utl::format<buffer_size>(format,std::forward<Args>(args)...);
+    //FIXME: switch to using utl::format
+    // constexpr size_t size = 512; 
+    // char buffer[size] = {0}; //NOLINT(cppcoreguidelines-avoid-c-arrays)
+    // uint32_t length{};
 
-    if constexpr(utl::platform::config::use_float) {
-        //Auto convert things to double?
-        length = static_cast<uint32_t>(snprintf(buffer, 512, format.data(), std::forward<Args>(args)...));
-    } else {
-        length = static_cast<uint32_t>(sniprintf(buffer, 512, format.data(), std::forward<Args>(args)...));
-    }
+    // if constexpr(utl::platform::config::use_float) {
+    //     //Auto convert things to double?
+    //     length = static_cast<uint32_t>(snprintf(buffer, size, format.data(), std::forward<Args>(args)...));
+    // } else {
+    //     length = static_cast<uint32_t>(sniprintf(buffer, size, format.data(), std::forward<Args>(args)...));
+    // }
 
-    auto res = logger::detail::get_global_output()->write({buffer,length});
+    //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    auto res = logger::detail::get_global_output()->write(buffer);
     ignore_result(res);
     ignore_result(logger::detail::get_global_output()->write("\r\n"_sv));
 }
 
 void log(utl::string_view const& str);
 
-template <typename... Args>
-void log(const char * format, Args&&... args) {
-    log({format,strlen(format)}, std::forward<Args>(args)...);
-}
+// template <typename... Args>
+// void log(string_view format, Args&&... args) {
+//     log(format, std::forward<Args>(args)...);
+// }
 
 #pragma clang diagnostic pop
 

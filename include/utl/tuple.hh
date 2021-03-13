@@ -1,8 +1,8 @@
 #ifndef UTL_TUPLE_HH_
 #define UTL_TUPLE_HH_
 
-#include <utl/type-list.hh>
 #include <utl/traits.hh>
+#include <utility>
 
 namespace utl {
 
@@ -14,22 +14,29 @@ struct tuple_element {
 
 namespace detail {
 
+template <size_t N, typename... Ts>
+struct get_type;
+
+template <size_t N, typename T, typename... Ts>
+struct get_type<N,T,Ts...> : get_type<N-1, Ts...> {};
+
+template<typename T, typename... Ts>
+struct get_type<0, T, Ts...> {
+    using type = T;
+};
+
 template <typename N, typename... Ts>
 struct tuple_impl;
 
 template <size_t... N, typename... Ts>
-struct tuple_impl<index_sequence<N...>, Ts...> : tuple_element<N,Ts>... {
-    using types_t = utl::type_list<Ts...>;
-
+struct tuple_impl<std::index_sequence<N...>, Ts...> : tuple_element<N,Ts>... {
     template <size_t M>
-    using get_t = typename types_t::template get_t<M>;
+    using get_t = typename get_type<M,Ts...>::type;
 
-    template <size_t M>
-    using element_t = tuple_element<M, get_t<M>>;
-
-    template <typename... Us, std::enable_if_t<sizeof...(Us) == sizeof...(Ts),int*> = nullptr>
+    template <typename... Us>
+        requires (std::is_convertible_v<Us,Ts> and ...)
     constexpr tuple_impl(Us&&... values) 
-        : tuple_element<N,Ts>{std::forward<Ts>(values)}... 
+        : tuple_element<N,Ts>{std::forward<Us>(values)}... 
     {}
 };
 
@@ -37,10 +44,9 @@ struct tuple_impl<index_sequence<N...>, Ts...> : tuple_element<N,Ts>... {
 
 
 template <typename... Ts>
-struct tuple : detail::tuple_impl<make_index_sequence<sizeof...(Ts)>, Ts...> {
-    using types_t = utl::type_list<Ts...>;
-    static constexpr size_t size() { return types_t::length; }
-    using detail::tuple_impl<make_index_sequence<sizeof...(Ts)>, Ts...>::tuple_impl;
+struct tuple : detail::tuple_impl<std::make_index_sequence<sizeof...(Ts)>, Ts...> {
+    static constexpr size_t size() { return sizeof...(Ts); }
+    using detail::tuple_impl<std::make_index_sequence<sizeof...(Ts)>, Ts...>::tuple_impl;
 };
 
 template <typename... Ts>
@@ -50,7 +56,7 @@ template <typename... Ts>
 auto make_tuple(Ts&&... args) { return tuple<Ts...>{std::forward<Ts>(args)...}; }
 
 template <typename F, size_t... Ns, typename... Ts>
-constexpr void for_each(detail::tuple_impl<index_sequence<Ns...>,Ts...>& tup, F&& functor) {
+constexpr void for_each(detail::tuple_impl<std::index_sequence<Ns...>,Ts...>& tup, F&& functor) {
     (functor(tup.template get<Ns>()),...);
 }
 
@@ -84,11 +90,14 @@ constexpr auto&& get(tuple<Ts...>&& t) {
     }
 }
 
-template <typename... Ts>
+template <typename T>
 struct tuple_size;
 
 template <typename... Ts>
-struct tuple_size<tuple<Ts...>> : utl::integral_constant<size_t,tuple<Ts...>::size()> {};
+struct tuple_size<tuple<Ts...>> : utl::integral_constant<size_t,sizeof...(Ts)> {};
+
+template <typename T>
+inline constexpr size_t tuple_size_v = tuple_size<T>::value;
 
 template <typename... Args>
 constexpr auto tie(Args&... args)
@@ -99,14 +108,14 @@ constexpr auto tie(Args&... args)
 template <typename F, typename... Ts>
 constexpr auto apply(F&& functor, tuple<Ts...>& args)
 {
-    return apply(std::forward<F>(functor), args, make_index_sequence<sizeof...(Ts)>{});
+    return apply(std::forward<F>(functor), args, std::make_index_sequence<sizeof...(Ts)>{});
 }
 
 template <typename F, typename... Ts, size_t... Is>
     requires requires(F&& f, tuple<Ts...>& a) {
         f(get<Is>(a)...);
     }
-constexpr auto apply(F&& functor, tuple<Ts...>& args, index_sequence<Is...>)
+constexpr auto apply(F&& functor, tuple<Ts...>& args, std::index_sequence<Is...>)
 {
     return functor(get<Is>(args)...);
 }

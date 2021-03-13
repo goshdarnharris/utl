@@ -4,23 +4,41 @@
 #include <utl/type-list.hh>
 #include <string.h>
 #include <utl/string-view.hh>
+#include <utl/ranges.hh>
 #include <utility>
 
 namespace utl {
 
 template <size_t N, typename char_t = char>
 class string {
-    [[nodiscard]] constexpr char access(size_t index) const
+    [[nodiscard]] constexpr char_t* address()
     {
-        return m_elements[index]; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        return static_cast<char_t*>(m_elements);
+    }
+
+    [[nodiscard]] constexpr const char_t* address() const
+    {
+        return static_cast<const char_t*>(m_elements);
+    }
+
+    [[nodiscard]] constexpr char_t& access(size_t index)
+    {
+        //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-bounds-constant-array-index)
+        return m_elements[index];
+    }
+
+    [[nodiscard]] constexpr char_t const& access(size_t index) const
+    {
+        //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-bounds-constant-array-index)
+        return m_elements[index];
     }
 
     struct impl_tag{};
 
     constexpr string(impl_tag, const char_t* str, size_t length = N)
     {
-        if(length != 0) __builtin_memcpy(m_elements, str, length <= N ? length : N);
-        m_elements[N] = '\0';
+        if(length != 0) __builtin_memcpy(address(), str, length <= N ? length : N);
+        access(N) = '\0';
     }    
 
     [[nodiscard]] constexpr string_view to_sv() const
@@ -47,13 +65,13 @@ public:
     constexpr string(size_t count, char_t ch) : string{}
     {
         if(count > N) count = N;
-        for(size_t pos=0; pos < count; pos++) m_elements[pos] = ch;
-        m_elements[N] = '\0';
+        for(size_t pos=0; pos < count; pos++) access(pos) = ch;
+        access(N) = '\0';
     }
 
     [[nodiscard]] constexpr const char_t* data() const
     {
-        return m_elements;
+        return address();
     }
 
     [[nodiscard]] constexpr const char_t* c_str() const
@@ -62,19 +80,19 @@ public:
     }
 
     [[nodiscard]] constexpr size_t length() const
-    { return __builtin_strlen(m_elements); }
+    { return __builtin_strlen(address()); }
 
     [[nodiscard]] constexpr size_t size() const
     { return N; }
 
     constexpr char_t& operator[](size_t idx)
     {
-        return m_elements[idx];
+        return access(idx);
     }
 
     constexpr char_t const& operator[](size_t idx) const
     {
-        return m_elements[idx];
+        return access(idx);
     }
 
     template <size_t M>
@@ -97,7 +115,7 @@ public:
     constexpr char_t at(size_t idx, char_t dfault)
     {
         if(idx < length()) {
-            return m_elements[idx];
+            return access(idx);
         } else {
             return dfault;
         }
@@ -109,20 +127,20 @@ public:
     }
 
     char_t* begin() {
-        return &m_elements[0];
+        return &access(0);
     }
-    const char_t* begin() const
+    [[nodiscard]] const char_t* begin() const
     {
-        return &m_elements[0];
+        return &access(0);
     }
 
     char_t* end()
     {
-        return &m_elements[N];
+        return &access(N);
     }    
-    const char_t* end() const
+    [[nodiscard]] const char_t* end() const
     {
-        return &m_elements[N];
+        return &access(N);
     }
 
     [[nodiscard]] constexpr string<N> substr(size_t pos, size_t count) const
@@ -131,7 +149,7 @@ public:
         if(pos >= size()) pos = size() - 1;
         if(count == npos) count = size() - pos;
         if(pos + count >= size()) count = size() - pos; 
-        return {impl_tag{}, &m_elements[pos], count}; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        return {impl_tag{}, &access(pos), count}; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
 
     [[nodiscard]] constexpr bool starts_with(string_view v) const
@@ -201,18 +219,26 @@ public:
         }
     }
 
-    [[nodiscard, deprecated("return value shouldn't be bool")]] constexpr int compare(string_view v) const
+    [[nodiscard]] constexpr int compare(string_view v) const
     {
-        if(v.size() != size()) return false;
-        return starts_with(v);
+        for(const auto [cursor,c] : ranges::enumerate(v)) {
+            if(cursor >= size()) break;
+            const auto this_c = this->operator[](cursor);
+            if(this_c < c) return -1;
+            if(this_c > c) return 1;
+        }
+        if(size() < v.size()) return -1;
+        if(size() > v.size()) return 1;
+        return 0;
     }
 };
 
+//NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
 template <size_t N, typename char_t, const char_t(&String)[N]>
 static constexpr size_t get_length_v = N-1;
 
 template <size_t N, typename char_t>
-string(const char_t (&)[N]) -> string<N-1,char_t>;
+string(const char_t (&)[N]) -> string<N-1,char_t>; //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
 //This doesn't work. I don't know how to make it recognize that the string is a constexpr.
 //Well, apparently you can't use strings as template arguments anyway.

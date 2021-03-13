@@ -27,13 +27,13 @@ template <typename T>
 constexpr auto* begin(T&& container) { return container.begin(); }
 
 template <typename T, size_t N>
-constexpr auto* begin(T (&container)[N]) { return &container[0]; }
+constexpr auto* begin(T (&container)[N]) { return &container[0]; } //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
 template <typename T>
 constexpr auto* end(T&& container) { return container.end(); }
 
 template <typename T, size_t N>
-constexpr auto* end(T (&container)[N]) { return &container[N-1]; }
+constexpr auto* end(T (&container)[N]) { return &container[N-1]; } //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
 //FIXME: these concepts need a lot of refinement.
 

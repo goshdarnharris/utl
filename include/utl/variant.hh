@@ -11,35 +11,42 @@ class variant {
     std::aligned_union_t<1,Ts...> m_storage;
     size_t m_index;
 
-    template <size_t N, typename F>
-    void _accept(F&& visitor) {
+    template <bool Const, size_t N, typename F>
+    void _accept(F&& visitor) const {
         if(N == m_index) {
-            apply<N,F>(std::forward<F>(visitor));
+            using value_t = utl::get_t<N,Ts...>;
+            if constexpr(Const) {
+                auto value_ptr = reinterpret_cast<value_t const*>(&m_storage);
+                visitor(*value_ptr);
+            } else {
+                auto value_ptr = reinterpret_cast<value_t const*>(&m_storage);
+                visitor(*const_cast<value_t*>(value_ptr)); //NOLINT(cppcoreguidelines-pro-type-const-cast)
+            }
         } else {
             if constexpr(N == 0) {
                 return;
             } else {
-                _accept<N-1,F>(std::forward<F>(visitor));
+                _accept<Const,N-1,F>(std::forward<F>(visitor));
             }
         }
     }
 
-    template <size_t N, typename F>
-    void apply(F&& visitor) {
-        using value_t = utl::get_t<N,Ts...>;
-        visitor(*reinterpret_cast<value_t*>(&m_storage));
-    }
 public:
 
     template <typename T>
+    requires utl::contains_v<T,Ts...> //NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     variant(T&& value) : m_storage{}, m_index{utl::get_type_index_v<T,Ts...>} {
-        static_assert(utl::contains_v<T,Ts...>, "variant cannot hold type");
         new (&m_storage) T{std::forward<T>(value)};
     }
 
     template <typename F>
     void accept(F&& visitor) {
-        _accept<sizeof...(Ts) - 1, F>(std::forward<F>(visitor));
+        _accept<false, sizeof...(Ts) - 1, F>(std::forward<F>(visitor));
+    }
+
+    template <typename F>
+    void accept(F&& visitor) const {
+        _accept<true, sizeof...(Ts) - 1, F>(std::forward<F>(visitor));
     }
 
     template <typename T>

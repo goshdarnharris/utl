@@ -3,6 +3,7 @@
 
 #include "utl/utl.hh"
 #include <initializer_list>
+#include <concepts>
 
 namespace utl {
 
@@ -19,7 +20,7 @@ struct array {
     T _storage[N]{}; //NOLINT(cppcoreguidelines-avoid-c-arrays)
 
     constexpr T& operator[](size_t idx) {
-        return _storage[idx];
+        return _storage[idx]; //NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
     }
     constexpr T const& operator[](size_t idx) const {
         return _storage[idx];
@@ -65,16 +66,16 @@ struct array {
     }
 
     constexpr T* data(void) {
-        return _storage;
+        return static_cast<T*>(_storage);
     }
     [[nodiscard]] constexpr T const* data(void) const {
-        return _storage;
+        return static_cast<const T*>(_storage);
     }
     constexpr volatile T* data(void) volatile {
-        return _storage;
+        return static_cast<volatile T*>(_storage);
     }
     [[nodiscard]] constexpr const volatile T* data(void) const volatile {
-        return _storage;
+        return static_cast<const volatile T*>(_storage);
     }
 };
 
@@ -87,11 +88,11 @@ struct array<T,0> {
     [[nodiscard]] constexpr size_t size() const volatile {
         return 0;
     }
-    constexpr auto begin() const { return detail::zero_length_iterator{}; }
-    constexpr auto end() const { return detail::zero_length_iterator{}; }
-    constexpr auto rbegin() const { return detail::zero_length_iterator{}; }
-    constexpr auto rend() const { return detail::zero_length_iterator{}; }
-    constexpr T* data() const { return nullptr; }
+    [[nodiscard]] constexpr auto begin() const { return detail::zero_length_iterator{}; }
+    [[nodiscard]] constexpr auto end() const { return detail::zero_length_iterator{}; }
+    [[nodiscard]] constexpr auto rbegin() const { return detail::zero_length_iterator{}; }
+    [[nodiscard]] constexpr auto rend() const { return detail::zero_length_iterator{}; }
+    [[nodiscard]] constexpr T* data() const { return nullptr; }
 };
 
 // template <typename T, typename... Args>
@@ -100,6 +101,13 @@ struct array<T,0> {
 
 template <typename T, size_t N>
 array(T (&)[N]) -> array<T,N>; //NOLINT(cppcoreguidelines-avoid-c-arrays)
+
+
+template <typename... Ts>
+array(Ts&&...) -> array<std::common_type_t<Ts...>, sizeof...(Ts)>;
+
+// template <typename T>
+// array(std::initializer_list<T> il) -> array<T,il.size()>;
 
 
 } // namespace utl

@@ -8,7 +8,7 @@
 #include <utl/array.hh>
 #include <utl/ranges.hh>
 #include <utl/span.hh>
-#include <utl/logger.hh>
+#include <utility>
 
 namespace utl {
 
@@ -100,8 +100,8 @@ namespace fmt {
         // type            ::=  "b" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "n" | "o" | "s" | "x" | "X" | "%"
         format_options spec = defaults;
 
-        auto iter = utl::ranges::begin(view);
-        auto end = utl::ranges::end(view);
+        const auto* iter = utl::ranges::begin(view);
+        const auto* end = utl::ranges::end(view);
         size_t pos = 0;
 
         auto check = [&](auto it) { return it != end; };
@@ -110,6 +110,7 @@ namespace fmt {
 
         auto check_advance = [&]() {
             if(not check(iter)) return false;
+            //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             if(not check(iter++)) return false;
             pos++;
             return true;
@@ -790,13 +791,32 @@ namespace fmt {
 
         template <typename T>
         struct arg_t final : public virtual varg {
-            T const& value;
-            arg_t(T& v) : value{v} {}
+            using type = T;
+            const T value;
+            arg_t(T v) : value{v} {}            
+            // arg_t(T& v) : value{v} {}
             void format(output& out, field const& f) const final
             {
                 _format(value, out, f);
             }
         };
+
+        template <typename T>
+        struct arg_t<T&> final : public virtual varg {
+            using type = T;
+            T const& value;
+            arg_t(T const& v) : value{v} {}
+            void format(output& out, field const& f) const final
+            {
+                _format(value, out, f);
+            }
+        };
+
+        template <typename T>
+        arg_t(T) -> arg_t<T>;
+
+        // template <typename T>
+        // arg_t(T&) -> arg_t<T&>;
 
         template <typename... Ts>
         struct arg_storage {
@@ -808,18 +828,18 @@ namespace fmt {
             const varg_storage_t vargs;
 
             template <size_t... N>
-            constexpr arg_storage(index_sequence<N...>, Ts&&... args_)
-            : args{std::forward<Ts>(args_)...},
+            constexpr arg_storage(std::index_sequence<N...>, std::convertible_to<Ts>auto&&... args_)
+            : args{arg_t<Ts>{std::forward<decltype(args_)>(args_)}...},
                 vargs{&utl::get<N>(args)...}
             {}
 
-            constexpr arg_storage(Ts&&... args_) 
-            : arg_storage{utl::make_index_sequence<n_args>{}, std::forward<Ts>(args_)...}
+            constexpr arg_storage(std::convertible_to<Ts> auto&&... args_) 
+            : arg_storage{std::make_index_sequence<n_args>{}, std::forward<decltype(args_)>(args_)...}
             {}
         };
 
         template <typename... Ts>
-        arg_storage(Ts&&...) -> arg_storage<Ts...>;
+        arg_storage(Ts...) -> arg_storage<Ts...>;
 
         struct arglist {
             using arg_view_t = utl::span<varg const* const>;
@@ -928,7 +948,6 @@ namespace fmt {
         };
 
         for(const auto&& [pos,c] : utl::ranges::enumerate(format)) {
-            // utl::log(" vf: %d, %c, %d", pos, c, state.active);
             switch(state.active) {
                 case format_state::ECHO:
                     if(c == field_entry) {

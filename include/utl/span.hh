@@ -34,18 +34,21 @@ public:
     
     constexpr auto size() { return m_size; }
     
-    constexpr T* data() const { return m_container; }
+    [[nodiscard]] constexpr T* data() const { return m_container; }
     [[nodiscard]] constexpr size_t size() const { return m_size; }
 
-    [[nodiscard]] constexpr T* begin() const { return m_container; }
-    [[nodiscard]] constexpr T* end() const { return m_container + m_size; }
+    [[nodiscard]] constexpr T* begin() const { return address(0); }
+    [[nodiscard]] constexpr T* end() const
+    { 
+        return address(m_size-1) + 1; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    }
     [[nodiscard]] constexpr T* rbegin() const { return address(size()-1); }
     [[nodiscard]] constexpr T* rend() const 
     {
         return address(0) - 1; //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
 
-    constexpr span subspan(size_t offset, size_t length) const
+    [[nodiscard]] constexpr span subspan(size_t offset, size_t length) const
     {        
         if(offset >= size()) offset = size();
         if(size() == 0) return {offset,0};

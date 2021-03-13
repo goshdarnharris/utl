@@ -28,7 +28,7 @@ inline void terminate(void)
 
 } // namespace std
 
-extern void* operator new(size_t size, void* where) noexcept;
+extern void* operator new(size_t size, void* storage) noexcept;
 
 #endif // UTL_BUILD_NOCXX
 
@@ -67,7 +67,7 @@ struct imprecise {
         min{std::move(other.min)}, max{std::move(other.max)}
     {}
 
-    constexpr bool contains(T value) 
+    constexpr bool contains(T value) const
     {
         return value >= min and value <= max;
     }

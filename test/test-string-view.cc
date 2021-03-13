@@ -6,17 +6,7 @@
 #include "utl/utl.hh"
 #include "utl/string-view.hh"
 
-TEST_GROUP(StringView) {
-
-void setup(void)
-{
-}
-
-void teardown(void)
-{
-}
-
-};
+TEST_GROUP(StringView) {};
 
 TEST(StringView,Construction)
 {
@@ -38,7 +28,7 @@ TEST(StringView,ConstexprSubstr)
 
     constexpr auto baz = foo.substr(6,2);
     CHECK(baz.size() == 1);
-    CHECK(baz.data() == &foo.data()[4]);
+    CHECK(baz.data() == &foo.data()[4]); //NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 TEST(StringView,ConstexprStartsWith)
