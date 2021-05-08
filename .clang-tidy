@@ -5,6 +5,8 @@ Checks: >-
     clang-analyzer-*,
     boost-*,
     misc-*,
+    -misc-unconventional-assign-operator,
+
     portability-*,
 
     bugprone-*,
@@ -41,6 +43,7 @@ Checks: >-
 WarningsAsErrors: >-
     -*,
     clang-diagnostic-*,
+    -clang-diagnostic-deprecated-declarations,
     clang-analyzer-*,
     boost-*,
     bugprone-*,

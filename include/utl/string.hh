@@ -221,7 +221,7 @@ public:
 
     [[nodiscard]] constexpr int compare(string_view v) const
     {
-        for(const auto [cursor,c] : ranges::enumerate(v)) {
+        for(auto&& [cursor,c] : ranges::enumerate(v)) {
             if(cursor >= size()) break;
             const auto this_c = this->operator[](cursor);
             if(this_c < c) return -1;

@@ -74,9 +74,9 @@ constexpr auto enumerate(T&& container)
         constexpr auto operator *() const { return utl::tie(index, *iter); }
     }; 
     struct enumerator {
-        T container;
-        constexpr auto begin() { return iterator{0, utl::ranges::begin(container)}; }
-        constexpr auto end() { return iterator{0, utl::ranges::end(container)}; }
+        decltype(container) c;
+        constexpr auto begin() { return iterator{0, utl::ranges::begin(c)}; }
+        constexpr auto end() { return iterator{0, utl::ranges::end(c)}; }
     };
     return enumerator{std::forward<T>(container)};
 };

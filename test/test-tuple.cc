@@ -6,8 +6,26 @@
 #include <utl/utl.hh>
 #include <utl/tuple.hh>
 #include <utl/logger.hh>
+#include <type_traits>
 
 TEST_GROUP(tuple) {};
+
+namespace {
+
+inline constexpr auto tup = utl::tuple{1.0f,10u,false};
+
+inline constexpr float some_float = get<0>(tup);
+inline constexpr unsigned int some_int = get<1>(tup);
+inline constexpr bool some_bool = get<2>(tup);
+
+inline constexpr auto tied = utl::tie(some_float,some_int,some_bool);
+static_assert(std::is_same_v<decltype(tied), const utl::tuple<const float&, const unsigned int&, const bool&>>);
+
+
+static auto forwarded = utl::forward_as_tuple(some_float,some_int,true);
+static_assert(std::is_same_v<decltype(forwarded), utl::tuple<const float&, const unsigned int&, bool&&>>);
+
+} //anonymous namespace
 
 static constexpr float float_value = 1.1f;
 
@@ -59,7 +77,7 @@ TEST(tuple,rvalue_contents_types)
     tuple_t foo{a,100.0f,false};
 
     CHECK((utl::is_same_v<int&   ,decltype(utl::get<0>(foo))>));
-    CHECK((utl::is_same_v<float&&,decltype(utl::get<1>(foo))>));
+    CHECK((utl::is_same_v<float& ,decltype(utl::get<1>(foo))>));
     CHECK((utl::is_same_v<bool&  ,decltype(utl::get<2>(foo))>));
 }
 
@@ -92,6 +110,8 @@ TEST(tuple,references)
     CHECK(utl::get<2>(foo) == c);
 }
 
+namespace {
+
 struct wrapper {
     int a;
     float b;
@@ -102,6 +122,8 @@ static wrapper wrap_args(int a, float b, bool c)
 {
     return {a,b,c};
 }
+
+} //anonymous namespace
 
 TEST(tuple,apply)
 {

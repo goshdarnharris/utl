@@ -84,13 +84,13 @@ static constexpr size_t get_type_index_v = get_type_index<T,Ts...>::value;
 
 template <typename... Ts>
 struct type_list {
-    static constexpr size_t length = sizeof...(Ts);
+    static constexpr size_t size() { return sizeof...(Ts); }
 
     template <size_t N>
     using get_t = get_t<N,Ts...>;
 
     template <std::size_t N>
-        requires (N < length)
+        requires (N < size())
     using type = typename get_type<N,Ts...>::type;
 
     template <typename T>

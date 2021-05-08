@@ -77,6 +77,7 @@ def configure(context):
     context.builder.append_cflag("-Wno-padded")
     context.builder.append_cflag("-Wno-extra-semi-stmt")
     context.builder.append_cflag("-Wno-covered-switch-default")
+    context.builder.append_cflag("-Wno-unused-template")
     # disable some of the c++ features that are unused
     context.builder.append_cflag("-fno-rtti")
     context.builder.append_cflag("-fno-exceptions")
@@ -84,13 +85,14 @@ def configure(context):
     context.builder.append_cflag("-fcoroutines-ts")
     # context.builder.append_cflag("-ftime-trace")
     if context.defined(MODE="test"):
-        luminaire.toolchain.OPTIMIZED(context.builder,optimize='3')
+        luminaire.toolchain.OPTIMIZED(context.builder,optimize='s')
         luminaire.toolchain.PRUNE(context.builder)
         
         context.builder.append_cflag('-g3')
         context.builder.append_lflag('-g3')
         context.builder.append_cflag('-ggdb')
         context.builder.append_lflag('-ggdb')
+        context.builder.append_lflag('-O2')
         # link-time optimization directives
         add_lto(context.builder)
 
@@ -128,6 +130,11 @@ def configure(context):
 
     context.builder.append_lflag("-lm")
 
+
+    context.builder.append_cflag("-fdiagnostics-show-template-tree")
+
+
+
     context.builder.append_cflag("-isystem packages/cpputest/include")
     context.builder.append_include("include")
     context.builder.append_include("test-platform")
@@ -149,7 +156,7 @@ def link(context,inputs,outputs):
 @Frontend.rule(["%.{cc,cpp}"],["build/{ARCH}/{MODE}/{0}.o","build/{ARCH}/{MODE}/{0}.d"])
 def compile_analyze_source(context,inputs,outputs):
     def do_it():
-        context.builder.compile_source(inputs[0],outputs[0])    
+        context.builder.compile_source(inputs[0],outputs[0])
         context.builder.perform_search(context,transform,outputs[1])
     if "packages/cpputest" in str(inputs[0]):
         with context.builder.push_cflags("-Wno-everything"):
@@ -172,5 +179,6 @@ def compile_analyze_source(context,inputs,outputs):
                 ]
 
             with context.analyzer.push_checks(*checks):
-                context.analyzer.analyze_source(inputs[0])
+                # context.analyzer.analyze_source(inputs[0])
+                pass
 

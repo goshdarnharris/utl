@@ -1,135 +1,253 @@
-#ifndef UTL_TUPLE_HH_
-#define UTL_TUPLE_HH_
+#pragma once
 
-#include <utl/traits.hh>
+#include <stdlib.h>
+#include <concepts>
 #include <utility>
 
 namespace utl {
 
-template <size_t N, typename T>
-struct tuple_element {
-    using type = T;
-    T value;
-};
-
-namespace detail {
-
-template <size_t N, typename... Ts>
-struct get_type;
-
-template <size_t N, typename T, typename... Ts>
-struct get_type<N,T,Ts...> : get_type<N-1, Ts...> {};
-
-template<typename T, typename... Ts>
-struct get_type<0, T, Ts...> {
-    using type = T;
-};
-
-template <typename N, typename... Ts>
+template <typename... Ts>
 struct tuple_impl;
 
-template <size_t... N, typename... Ts>
-struct tuple_impl<std::index_sequence<N...>, Ts...> : tuple_element<N,Ts>... {
-    template <size_t M>
-    using get_t = typename get_type<M,Ts...>::type;
+template <>
+struct tuple_impl<> {};
 
-    template <typename... Us>
-        requires (std::is_convertible_v<Us,Ts> and ...)
-    constexpr tuple_impl(Us&&... values) 
-        : tuple_element<N,Ts>{std::forward<Us>(values)}... 
+template <typename Head, typename... Tail>
+struct tuple_impl<Head,Tail...> : tuple_impl<Tail...> {
+    Head value;
+
+    //NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
+    constexpr tuple_impl(std::convertible_to<Head> auto&& head, std::convertible_to<Tail> auto&&... tail)
+      : tuple_impl<Tail...>{std::forward<decltype(tail)>(tail)...}, 
+        value{std::forward<decltype(head)>(head)}
     {}
 };
 
-} //namespace detail
+template <typename Terminal>
+struct tuple_impl<Terminal> {
+    Terminal value;
 
+    //NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
+    constexpr tuple_impl(std::convertible_to<Terminal> auto&& terminal) : value{std::forward<Terminal>(terminal)} {}
+};
 
 template <typename... Ts>
-struct tuple : detail::tuple_impl<std::make_index_sequence<sizeof...(Ts)>, Ts...> {
-    static constexpr size_t size() { return sizeof...(Ts); }
-    using detail::tuple_impl<std::make_index_sequence<sizeof...(Ts)>, Ts...>::tuple_impl;
+struct tuple : tuple_impl<Ts...> {
+    static constexpr bool is_default_constructible = (sizeof...(Ts) == 0) or 
+        (std::is_default_constructible_v<Ts> and ...);    
+    static constexpr bool is_copy_constructible = (sizeof...(Ts) > 0) and 
+        (std::is_copy_constructible_v<Ts> and ...);
+
+    template <typename... Us>
+    static constexpr bool is_constructible_from_args = (sizeof...(Us) == sizeof...(Ts)) and
+        (std::is_constructible_v<Ts> and ...);
+
+
+    constexpr tuple() requires is_default_constructible = default;
+
+    constexpr explicit((not std::is_convertible_v<const Ts&,Ts> or ...)) tuple(const Ts&... args)
+        requires ((sizeof...(Ts) > 0) and is_copy_constructible)
+    : tuple_impl<Ts...>{args...} {}
+
+    template <class... Us>
+        requires (sizeof...(Us) == sizeof...(Ts)) and 
+            (sizeof...(Ts) > 0) and
+            (std::is_constructible_v<Ts,Us&&> and ...)
+    constexpr explicit((not std::is_convertible_v<Us,Ts> or ...)) tuple(Us&&... args)
+      : tuple_impl<Ts...>{std::forward<Us>(args)...} {}
+
+    // template <class... Us>
+    // constexpr tuple(const tuple<Us...>& other);
+
+    // template <class... Us>
+    // constexpr tuple(tuple<Us...>&& other);
+
+    // template <class U1, class U2>
+    // constexpr tuple(const pair<U1,U2>& p);
+
+    // template <class U1, class U2>
+    // constexpr tuple(pair<U1,U2>&& p);
+
+    constexpr tuple(const tuple& other) = default;
+    constexpr tuple(tuple&& other) = default;
+    constexpr tuple& operator=(const tuple& other) = default;
+    constexpr tuple& operator=(tuple&& other) = default;
+
+    constexpr ~tuple() = default;
 };
+
 
 template <typename... Ts>
 tuple(Ts...) -> tuple<Ts...>;
 
-template <typename... Ts>
-auto make_tuple(Ts&&... args) { return tuple<Ts...>{std::forward<Ts>(args)...}; }
 
-template <typename F, size_t... Ns, typename... Ts>
-constexpr void for_each(detail::tuple_impl<std::index_sequence<Ns...>,Ts...>& tup, F&& functor) {
-    (functor(tup.template get<Ns>()),...);
-}
+namespace detail {
 
-template <size_t I, typename... Ts>
-constexpr auto&& get(tuple<Ts...>& t) { 
-    using value_t = typename tuple<Ts...>::template get_t<I>;
-    if constexpr (std::is_rvalue_reference_v<value_t>) {
-        return std::move(t.template tuple_element<I,value_t>::value);
-    } else {
-        return t.template tuple_element<I,value_t>::value; 
-    }
-}
+struct ignore_t {
+    //NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
+    constexpr void operator=(auto&&) const {}
+};
 
-template <size_t I, typename... Ts>
-constexpr auto&& get(tuple<Ts...> const& t) { 
-    using value_t = typename tuple<Ts...>::template get_t<I>;
-    if constexpr (std::is_rvalue_reference_v<value_t>) {
-        return std::move(t.template tuple_element<I,value_t>::value);
-    } else {
-        return t.template tuple_element<I,value_t>::value; 
-    }
-}
+} //namespace detail
 
-template <size_t I, typename... Ts>
-constexpr auto&& get(tuple<Ts...>&& t) { 
-    using value_t = typename tuple<Ts...>::template get_t<I>;
-    if constexpr (std::is_lvalue_reference_v<value_t>) {
-        return t.template tuple_element<I,value_t>::value;
-    } else {
-        return std::move(t.template tuple_element<I,value_t>::value); 
-    }
-}
+inline constexpr detail::ignore_t ignore;
 
 template <typename T>
 struct tuple_size;
 
 template <typename... Ts>
-struct tuple_size<tuple<Ts...>> : utl::integral_constant<size_t,sizeof...(Ts)> {};
+struct tuple_size<tuple<Ts...>> { static constexpr size_t value = sizeof...(Ts); };
+
+template <typename... Ts>
+struct tuple_size<const tuple<Ts...>> { static constexpr size_t value = sizeof...(Ts); };
 
 template <typename T>
-inline constexpr size_t tuple_size_v = tuple_size<T>::value;
+inline constexpr const size_t tuple_size_v = tuple_size<std::remove_reference_t<T>>::value;
 
-template <typename... Args>
-constexpr auto tie(Args&... args)
+template <size_t I, typename T>
+struct tuple_element;
+
+template <size_t I, typename Head, typename... Tail>
+struct tuple_element<I,tuple<Head,Tail...>> {
+    using type = typename tuple_element<I-1,tuple<Tail...>>::type;
+};
+
+template <typename Head, typename... Tail>
+struct tuple_element<0,tuple<Head,Tail...>> {
+    using type = Head;
+};
+
+template <size_t I>
+struct tuple_element<I,tuple<>> {
+    static_assert(I < tuple_size_v<tuple<>>, "tuple index is out of range");
+};
+
+template <size_t I, typename T>
+struct tuple_element<I,const T> {
+  using type = typename std::add_const<typename tuple_element<I,T>::type>::type;
+};
+
+template <size_t I, typename T>
+struct tuple_element<I,volatile T> {
+  using type = typename std::add_volatile<typename tuple_element<I,T>::type>::type;
+};
+
+template <size_t I, typename T>
+struct tuple_element<I,const volatile T> {
+  using type = typename std::add_cv<typename tuple_element<I,T>::type>::type;
+};
+
+template <size_t I, typename T>
+using tuple_element_t = typename tuple_element<I,T>::type;
+
+using some_t = tuple_element_t<1,tuple<int,bool,char>>;
+
+
+constexpr auto make_tuple(auto&&... args)
 {
-    return tuple<Args&...>(args...);
+    return tuple{std::forward<decltype(args)>(args)...};
 }
 
-template <typename F, typename... Ts>
-constexpr auto apply(F&& functor, tuple<Ts...>& args)
+template <typename... Ts>
+constexpr auto tie(Ts&... args)
 {
-    return apply(std::forward<F>(functor), args, std::make_index_sequence<sizeof...(Ts)>{});
+    return tuple<Ts&...>{args...};
 }
 
-template <typename F, typename... Ts, size_t... Is>
-    requires requires(F&& f, tuple<Ts...>& a) {
-        f(get<Is>(a)...);
+template <typename... Ts>
+constexpr auto forward_as_tuple(Ts&&... args)
+{    
+    return tuple<Ts&&...>{std::forward<Ts>(args)...};
+}
+
+constexpr auto tuple_cat(auto&&... args)
+{
+    static_assert((std::same_as<decltype(args),void> and ...), "unimplemented");
+}
+
+template <typename T>
+struct tuple_t;
+
+/// Return a reference to the ith element of a tuple.
+template<std::size_t I, typename T, typename... Ts>
+constexpr auto& get_impl(tuple_impl<T, Ts...>& t)
+{
+    if constexpr(I == 0) {
+        return t.value;
+    } else {
+        return get_impl<I-1>(static_cast<tuple_impl<Ts...>&>(t));
     }
-constexpr auto apply(F&& functor, tuple<Ts...>& args, std::index_sequence<Is...>)
-{
-    return functor(get<Is>(args)...);
 }
+
+/// Return a const reference to the ith element of a const tuple.
+template<std::size_t I, typename T, typename... Ts>
+constexpr const auto& get_impl(const tuple_impl<T, Ts...>& t)
+{
+    if constexpr(I == 0) {
+        return t.value;
+    } else {
+        return get_impl<I-1>(static_cast<const tuple_impl<Ts...>&>(t));
+    }
+}
+
+
+/// Return a reference to the ith element of a tuple.
+template<std::size_t I, typename... Ts>
+constexpr auto& get(tuple<Ts...>& t)
+{
+    static_assert(I < tuple_size_v<tuple<Ts...>>, "out of bounds");
+    return get_impl<I,Ts...>(static_cast<tuple_impl<Ts...>&>(t));
+}
+
+/// Return a const reference to the ith element of a const tuple.
+template<std::size_t I, typename... Ts>
+constexpr const auto& get(const tuple<Ts...>& t)
+{
+    static_assert(I < tuple_size_v<tuple<Ts...>>, "out of bounds");
+    return get_impl<I,Ts...>(static_cast<const tuple_impl<Ts...>&>(t));
+}
+
+/// Return an rvalue reference to the ith element of a tuple rvalue.
+template<std::size_t I, typename... Ts>
+constexpr auto&& get(tuple<Ts...>&& t)
+{
+    static_assert(I < tuple_size_v<tuple<Ts...>>, "out of bounds");
+    using element_t = tuple_element_t<I,tuple<Ts...>>;
+    return std::forward<element_t&&>(utl::get_impl<I,Ts...>(t));
+}
+
+/// Return a const rvalue reference to the ith element of a const tuple rvalue.
+template<std::size_t I, typename... Ts>
+constexpr const auto&& get(const tuple<Ts...>&& t)
+{
+    static_assert(I < tuple_size_v<const tuple<Ts...>>, "out of bounds");
+    using element_t = tuple_element_t<I,tuple<Ts...>>;
+    return std::forward<const element_t&&>(utl::get_impl<I,Ts...>(t));
+}
+
+template <typename F, typename T, size_t... Is>
+constexpr decltype(auto) apply_impl(F&& f, T&& t, std::index_sequence<Is...>)
+{
+    return f(get<Is>(std::forward<T>(t))...);
+}
+
+template <typename F, typename T>
+constexpr decltype(auto) apply(F&& f, T&& t)
+{
+    return apply_impl(std::forward<F>(f), std::forward<T>(t), std::make_index_sequence<tuple_size_v<T>>{});
+}
+
+
+
 
 } //namespace utl
 
 namespace std {
 
-template<typename... Ts>
-struct tuple_size<utl::tuple<Ts...>> : public std::integral_constant<size_t, utl::tuple<Ts...>::size()> {};
+template <size_t I, typename T>
+struct tuple_element : utl::tuple_element<I,T> {};
 
-template <size_t I, typename... Ts>
-struct tuple_element<I, utl::tuple<Ts...>> : public utl::tuple_element<I, typename utl::tuple<Ts...>::template get_t<I>> {};
+template <typename T>
+struct tuple_size : utl::tuple_size<T> {};
 
-};
-
-#endif //UTL_TUPLE_HH_
+} //namespace std

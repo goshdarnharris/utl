@@ -828,7 +828,7 @@ namespace fmt {
             const varg_storage_t vargs;
 
             template <size_t... N>
-            constexpr arg_storage(std::index_sequence<N...>, std::convertible_to<Ts>auto&&... args_)
+            constexpr arg_storage(std::index_sequence<N...>, std::convertible_to<Ts> auto&&... args_)
             : args{arg_t<Ts>{std::forward<decltype(args_)>(args_)}...},
                 vargs{&utl::get<N>(args)...}
             {}
@@ -947,7 +947,7 @@ namespace fmt {
             }
         };
 
-        for(const auto&& [pos,c] : utl::ranges::enumerate(format)) {
+        for(auto&& [pos,c] : utl::ranges::enumerate(format)) {
             switch(state.active) {
                 case format_state::ECHO:
                     if(c == field_entry) {
