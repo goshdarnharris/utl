@@ -2,62 +2,99 @@
 
 #include <utl/utl.hh>
 #include <utl/tuple.hh>
-#include <utl/irq/safe.hh>
 #include <utl/irq/bits.hh>
+#include <utl/irq/irq.hh>
 #include <utl/concepts.hh>
 #include <type_traits>
 
+#include <utl/utility.hh>
+
 namespace utl::irq {
 
+template <auto* F>
+using handler_t = std::remove_pointer_t<decltype(F)>;
 
+template <auto* F>
+concept any_handler = 
+    std::is_function_v<handler_t<F>>;
+    //and same_as<void, std::result_of<handler_t<F>>>;
+    //FIXME: need to check the return type, and result_of
+    //(which will deduce the argument types) was removed in
+    //c++20; invoke_result doesn't deduce.
+
+//**** Static Handlers
+
+template <size_t N>
+using static_handler_arg_t = void(irq_t<N>);
+
+template <size_t N>
+constexpr auto get_static_handler_irq(static_handler_arg_t<N>*)
+{
+    return irq_t<N>{};
+}
+
+template <auto* F>
+using static_handler_irq_t = std::remove_reference_t<decltype(get_static_handler_irq(F))>;
+
+
+//FIXME: improve note output when this gets something that doesn't
+//pass; particularly if it takes too many arguments or the like
+template <auto* F>
+concept any_static_handler = any_handler<F> and requires() {
+    F(get_static_handler_irq(F));
+};
+
+template <auto* F>
+    requires any_static_handler<F>
+//FIXME: this is a wrapper to allow the vector table to deduce
+// the function pointer as a template parameter. it's kind of 
+// a hack, so it needs a better name and probably better error
+// handling.
+struct wrap_static_handler {
+    static constexpr auto* handler = F;
+    static constexpr auto irq = get_static_handler_irq(F);
+};
+
+
+//**** Bound Handlers
+
+template <size_t N, typename... Ts>
+using bound_handler_arg_t = void(*)(irq_t<N>,Ts...);
+
+template <size_t N, typename... Ts>
+constexpr auto get_bound_handler_irq(bound_handler_arg_t<N,Ts...>)
+{
+    return irq_t<N>{};
+}
 
 template <typename T>
-concept any_platform = true;
+struct get_first_parameter_type;
 
-template <typename T, typename P>
-concept any_irqn = any_platform<P>;
+template <typename R, typename T, typename... Ts>
+struct get_first_parameter_type<R(T,Ts...)>
+{
+    using type = T;
+};
 
 template <typename T>
-void vector()
-{
-    isr(T{});
-}
+using get_first_parameter_t = typename get_first_parameter_type<T>::type;
 
-template <typename T, auto& Handler, auto& Capture>
-void vector()
-{
-    static constexpr auto& handler = Handler;
-    static constexpr auto& capture = Capture;
-    utl::apply(handler,capture);
-}
+template <auto* F>
+using bound_handler_irq_t = std::remove_reference_t<decltype(get_bound_handler_irq(F))>;
 
-//either put it in the global scope or force the user to use a tag for adl
-void isr(auto&&... args)
-{ 
-    static_assert(sizeof...(args) == 0, "You must define a free function "
-    "named 'isr' that accepts an irq type (which you can specify, or constrain "
-    "with an appropriate concept) and the argument types you're trying to bind."
-    );
-    utl::maybe_unused(args...);
-}
+//FIXME: I need a way to get the argument types...
+template <auto* F, typename... Ts>
+concept any_bindable_handler = (
+    any_handler<F>
+    and any_irq<get_first_parameter_t<handler_t<F>>>
+    and requires(Ts... args) {
+        { F(get_bound_handler_irq(F), std::forward<Ts>(args)...) } -> std::same_as<void>;
+    });
 
-//FIXME: what's idiomatic c++ for dealing with something like this vector
-// return value that can capture local variables?
-//how to communicate that this has global behaviour?
-template <typename... Ts>
-    requires (any_isr_safe<std::unwrap_ref_decay_t<Ts&&>> and ...)
-[[nodiscard]] auto bind(auto irq, void(*isr)(decltype(irq),_bind_unwrap_t<Ts&&>...), Ts&&... args)
-{
-    using irq_t = decltype(irq);  
-    using capture_t = utl::tuple<irq_t,_bind_unwrap_t<decltype(args)>...>;
+//this and handler_t are just
+//getting the function type. combine them and give it a better name.
 
-    static auto handler = isr;
-    static auto capture = capture_t{
-        std::forward<irq_t>(irq), 
-        std::forward<_bind_unwrap_t<decltype(args)>>(args)...
-    };
-    return vector<irq_t,handler,capture>;
-}
+
 
 
 } //namespace utl::irq

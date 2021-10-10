@@ -1,45 +1,82 @@
 #pragma once
 
+#include <utility>
+#include <stdio.h>
 #include <stdint.h>
-#include <concepts>
-#include <utl/array.hh>
+
 #include <utl/irq/handler.hh>
+#include <utl/irq/unsafe.hh>
+#include <utl/irq/safe.hh>
+#include <utl/array.hh>
+
+#include <utl/utility.hh>
+
+#include <utl/linker.hh>
 
 namespace utl::irq {
 
-template <typename IRQn_t, size_t N_VECTORS>
-class vector_table {
-    utl::array<handler_t,N_VECTORS> m_vectors;
+using vector_t = void(void);
 
-    static constexpr int32_t IRQ_EXCEPTION_OFFSET = 16;
+template <auto* F>
+void _static_vector()
+{
+    static constexpr auto irq = get_static_handler_irq(F);
+    F(irq);
+}
 
-    [[nodiscard]] static constexpr size_t vector_index(IRQn_t irqn)
+template <auto* F, auto& Capture>
+void _bound_vector()
+{
+    // static constexpr auto& bound_capture = Capture;
+    utl::apply(F,Capture);
+}
+
+extern "C" uint32_t _stack_top;
+
+// template <typename T>
+// using _unwrap_isr_safe_t = typename _unwrap_isr_safe<T>::type;
+
+template <size_t N>
+struct [[nodiscard]] vector_table {
+    // std::array<bare_vector_t,118> m_table;
+    uint32_t* m_stack_begin = utl::linker::stack().end;//&_stack_top;
+    utl::array<vector_t*,N> m_table;
+    static constexpr size_t n_vectors = N;
+    //FIXME: need to initialize all indices to the default vector
+    //FIXME: this could be a tuple of specific IRQ types. give it
+    //a smidge more type safety?
+    //FIXME: if this could use a constexpr pointer to the vector
+    //table in memory, it could be more constexpr. would need
+    //to use the linker symbol trick. not sure how to handle
+    //sizing the type of that symbol appropriately. 
+    
+
+    template <auto*... Fs>
+        requires (any_static_handler<Fs> and ...)
+    constexpr vector_table(wrap_static_handler<Fs>... handlers)
     {
-        return static_cast<size_t>(irqn + IRQ_EXCEPTION_OFFSET);
+        ((m_table[handlers.irq.number] 
+            = _static_vector<handlers.handler>),...);
     }
-public:
-    template <typename... Ts>
-    constexpr vector_table(Ts&&... args) : m_vectors{std::forward<Ts>(args)...} 
-    {
-        static_assert(sizeof...(Ts) == N_VECTORS, "incorrect number of interrupt vectors.");
-    }
 
-    [[nodiscard]] uint32_t location() const { return reinterpret_cast<uint32_t>(&m_vectors); }
+    template <any_irq I, any_isr_safe... Ts>
+    using capture_t = utl::tuple<I,_unwrap_isr_safe_t<Ts>...>;
 
-    [[nodiscard]] constexpr handler_t get_handler(IRQn_t irqn) const
+    template <auto* F, any_isr_safe... Ts>
+        requires any_bindable_handler<F,_unwrap_isr_safe_t<Ts>...>
+    void bind_handler(Ts&&... args) const
     {
-        const size_t idx = vector_index(irqn);
-        if(idx >= m_vectors.size()) return nullptr;
-        return m_vectors[idx];
-    }
+        using irq_t = bound_handler_irq_t<F>;  
 
-    bool set_handler(IRQn_t irqn, handler_t handler)
-    {
-        const size_t idx = vector_index(irqn);
-        if(idx >= m_vectors.size()) return false;
-        m_vectors[idx] = handler;
-        return true;
+        static auto capture = capture_t<irq_t,Ts...>{
+            irq_t{}, 
+            std::forward<_unwrap_isr_safe_t<Ts>>(args)...
+        };
+
+        m_table[irq_t::number] = _bound_vector<F,capture>;
     }
 };
 
 } //namespace utl::irq
+
+// extern constinit utl::irq::vector_table<118> table;

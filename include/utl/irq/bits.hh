@@ -6,12 +6,12 @@
 namespace utl::irq {
 
 template <typename T>
-struct _bind_unwrap { using type = std::unwrap_ref_decay_t<T>; };
+struct _unwrap_isr_safe { using type = std::unwrap_ref_decay_t<T>; };
 
 template <typename T>
-struct _bind_unwrap<T&&> { using type = T&&; };
+struct _unwrap_isr_safe<T&&> { using type = T&&; };
 
 template <typename T>
-using _bind_unwrap_t = typename _bind_unwrap<T>::type;
+using _unwrap_isr_safe_t = typename _unwrap_isr_safe<T>::type;
 
 } //namespace utl::irq

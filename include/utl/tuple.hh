@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <concepts>
 #include <utility>
+#include <utl/utility.hh>
 
 namespace utl {
 
@@ -28,7 +29,7 @@ struct tuple_impl<Terminal> {
     Terminal value;
 
     //NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
-    constexpr tuple_impl(std::convertible_to<Terminal> auto&& terminal) : value{std::forward<Terminal>(terminal)} {}
+    constexpr tuple_impl(std::convertible_to<Terminal> auto&& terminal) : value{std::forward<decltype(terminal)>(terminal)} {}
 };
 
 template <typename... Ts>
@@ -183,7 +184,7 @@ constexpr auto& get_impl(tuple_impl<T, Ts...>& t)
 template<std::size_t I, typename T, typename... Ts>
 constexpr const auto& get_impl(const tuple_impl<T, Ts...>& t)
 {
-    if constexpr(I == 0) {
+    if constexpr(I == 0) {        
         return t.value;
     } else {
         return get_impl<I-1>(static_cast<const tuple_impl<Ts...>&>(t));
@@ -204,6 +205,7 @@ template<std::size_t I, typename... Ts>
 constexpr const auto& get(const tuple<Ts...>& t)
 {
     static_assert(I < tuple_size_v<tuple<Ts...>>, "out of bounds");
+    
     return get_impl<I,Ts...>(static_cast<const tuple_impl<Ts...>&>(t));
 }
 

@@ -10,9 +10,11 @@ namespace utl::irq {
 
 template <typename>
 constexpr auto is_isr_safe() { 
-    return false;
+    return true;
 }
 
+//lock-free atomics are always safe.
+//there's probably a better way to express this.
 template <typename T>
     requires requires{
         { T::is_always_lock_free } -> std::convertible_to<bool>;
@@ -36,6 +38,9 @@ template <typename T>
     requires std::is_rvalue_reference_v<T>
 constexpr auto is_isr_safe() { return true; }
 
+
+//this ends up hiding useful error information.
+//need to find a way to rework it.
 template <typename T>
 concept any_isr_safe = is_isr_safe<T>();
 
