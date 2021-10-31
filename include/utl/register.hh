@@ -40,12 +40,6 @@ namespace fields {
         return (v << F::position) & F::mask;
     }
 
-    template <typename F>
-    constexpr value_t<F> clear_field(const value_t<F> v)
-    {
-        return ~F::mask & v;
-    }
-
     template <typename R, size_t P, size_t W>
     struct read_only : field<R,P,W,true,false> {};
 
@@ -71,13 +65,64 @@ namespace fields {
     // constexpr auto get_register_value()
 }
 
-namespace convert {
-    //define conversion customization points here
-}
+template <auto*> using any_register_helper = void;
+
+template <typename T>
+concept any_register = requires(const T v) {
+    std::remove_reference_t<T>::location();
+    v.value();
+    { v.value() } -> std::same_as<std::remove_pointer_t<decltype(std::remove_reference_t<T>::location())>>;
+    *std::remove_reference_t<T>::location() = v.value();
+    typename any_register_helper<std::remove_reference_t<T>::location()>;
+};
+
+template <typename R1, typename R2>
+concept same_register_as = any_register<R1> and any_register<R2> and
+    (std::remove_reference_t<R1>::location() == std::remove_reference_t<R2>::location());
+
+template <any_register T>
+using register_value_t = std::remove_reference_t<decltype(std::declval<T>().value())>;
+
+BFG_TAG_INVOKE_DEF(register_cast);
+
+// constexpr void tag_invoke(register_cast_t, auto&&, auto&&)
+// {
+//     static_assert()
+// }
+
+//need to bring together fields & registers more...
+//I shouldn't have to define separate ops & customization points
+//for each; just one that dispatches on the register/field type.
+//at the end of the day, everything under the hood is dealing with
+//register-wide values.
+//I should be able to:
+// - convert a value (that customizes reg::convert) into a composed
+//    operation
+// - use any convertible value in a composition
+// - use any register in a composition
+// - use any field in a composition
 
 namespace ops {
 
     BFG_TAG_INVOKE_DEF(apply);
+    BFG_TAG_INVOKE_DEF(compose);
+
+    template <typename T, typename R>
+    concept any_register_op = requires(R r, T o, typename T::value_t v) {
+        { utl::reg::ops::apply(r,o,v) } -> std::same_as<typename T::value_t>;
+    };
+
+    template <typename T>
+    concept has_target_register = requires() {
+        typename std::remove_reference_t<T>::register_t;
+    };
+
+    template <has_target_register T>
+    using target_register_t = typename std::remove_reference_t<T>::register_t;
+
+    template <typename T>
+    concept any_targeted_register_op = has_target_register<T> and any_register_op<T,target_register_t<T>>;
+
 
     template <typename F>
     struct field_op {
@@ -86,110 +131,150 @@ namespace ops {
         using value_t = typename register_t::value_t;
     };
 
-    template <typename R>
-    struct register_op {
+    template <typename R, typename F>
+    struct op_info {
         using register_t = R;
-        using value_t = typename register_t::value_t;
+        using field_t = F;
+        using value_t = typename R::value_t;
     };
 
-    template <typename F>
-    struct assign : field_op<F> {
-        typename field_op<F>::value_t value;
-        friend constexpr auto tag_invoke(apply_t, assign op, const fields::value_t<F> in)
-        {
-            const auto cleared = fields::clear_field<F>(in);
-            const auto aligned = fields::align_to_field<F>(op.value);
-            
-            return cleared | aligned;
-        }
-    };
+    template <typename R1, typename F1, typename R2, typename F2>
+    constexpr void check_compatibility(op_info<R1,F2>, op_info<R2,F2>)
+    {
+        static_assert(same_register_as<R1,R2>,
+            "register operations must target the same register");
 
-    // template <typename R>
-    // struct assign_register : register_op<R> {
-    //     typename register_op<R>::value_t value;
-    //     friend constexpr auto tag_invoke(apply_t, assign op, const R& in)
-    //     {
-
-    //     }
-    // }
-
-    template <typename F>
-    struct set : field_op<F> {
-        typename field_op<F>::value_t mask;
-        friend constexpr auto tag_invoke(apply_t, set op, const fields::value_t<F> in)
-        {
-            return in | fields::align_to_field<F>(op.mask);
-        }
-    };
-
-    template <typename F>
-    struct clear : field_op<F> {
-        typename field_op<F>::value_t mask;
-        friend constexpr auto tag_invoke(apply_t, clear op, const fields::value_t<F> in)
-        {
-            return in & ~fields::align_to_field<F>(op.mask);
-        }
-    };
-
-    template <typename F>
-    struct read : field_op<F> {
-        using register_t = typename field_op<F>::register_t;
-        friend constexpr auto tag_invoke(apply_t, read)
-        {
-            return *register_t::value;
-        }
-    };
+        //FIXME: this might not be a correct assertion
+        static_assert(not same_as<F1,F2>,
+            "register operations must not target the same field");
+    }
 
     template <typename O1, typename O2>
     struct composed {
-        using op_1_register_t = typename std::remove_reference_t<O1>::register_t;
-        using op_2_register_t = typename std::remove_reference_t<O2>::register_t;
-        static_assert(std::is_same_v<op_1_register_t,op_2_register_t>
-            or std::is_base_of_v<op_1_register_t,op_2_register_t> 
-            or std::is_base_of_v<op_2_register_t,op_1_register_t>,
-            "only operations targeting fields from the same register may be composed");
-        using register_t = op_1_register_t;
+        using op_a_register_t = target_register_t<O1>;
+        using op_b_register_t = target_register_t<O2>;
+
+        using register_t = op_a_register_t;
         using value_t = typename register_t::value_t;
         const O1 op1;
         const O2 op2;
 
-        friend constexpr auto tag_invoke(apply_t, composed comp, const value_t in)
+        friend constexpr value_t tag_invoke(apply_t, const register_t reg, composed comp, const value_t in)
         {
-            return apply(comp.op2,apply(comp.op1,in));
+            return apply(reg,comp.op2,apply(reg,comp.op1,in));
         }
     };
 
     template <typename O1, typename O2>
     composed(O1&&,O2&&) -> composed<O1,O2>; 
 
+
+    template <typename R>
+    struct manipulate {
+        //these masks must be constructed such that they are orthogonal
+        //to guarantee commutativity
+        using register_t = R;
+        using value_t = typename R::value_t;
+        value_t set_mask;
+        value_t clear_mask;
+
+        friend constexpr value_t tag_invoke(apply_t, const register_t, const manipulate<register_t> op, const value_t in)
+        {
+            return (in | op.set_mask) & ~op.clear_mask;
+        }
+
+        template <typename T>
+        friend constexpr auto tag_invoke(compose_t, const register_t, const manipulate<register_t> op1, const manipulate<T> op2)
+        {
+            static_assert(same_register_as<register_t,T>, "only operations targeting the same"
+                " register may be composed");
+            return manipulate<R>{(op1.set_mask | op2.set_mask) & ~op2.clear_mask, (op1.clear_mask | op2.clear_mask) & ~op2.set_mask};
+        }
+    };
+
+    template <typename F>
+    struct read : field_op<F> {
+        using register_t = typename field_op<F>::register_t;
+        using value_t = typename register_t::value_t;
+        manipulate<register_t> reduced{value_t{},value_t{}};
+
+        friend constexpr value_t tag_invoke(apply_t, const register_t reg, const read op)
+        {
+            //FIXME: need a "whole register" read operation
+            //FIXME: this needs to dealign things properly.
+            return (reg.value() | op.reduced.set_mask) & ~op.reduced.clear_mask;
+        }
+
+        template <typename T>
+        friend constexpr auto tag_invoke(compose_t, const register_t, const read op1, const manipulate<T> op2)
+        {
+            static_assert(same_register_as<register_t,T>, "only operations targeting the same"
+                " register may be composed");
+            auto red = compose(op1.reduced,op2);
+            return read{red.set_mask,red.clear_mask};
+        }
+
+        template <typename T>
+        [[deprecated("any operations prior to a 'read' operation will be discarded")]]
+        friend constexpr auto tag_invoke(compose_t, const register_t, const any_register_op<register_t> auto, read op)
+        {
+            return op;
+        }
+    };
+
     //TODO: implement atomic operations
     template <typename T>
     struct atomic;
     
-    template <typename T>
-    concept any_register_op = requires(T o, typename T::value_t v) {
-        { utl::reg::ops::apply(o,v) } -> std::same_as<typename T::value_t>;
-    };
-
-    constexpr auto operator |(any_register_op auto a, const any_register_op auto b)
+    
+    constexpr auto tag_invoke(apply_t, const any_register auto reg, const auto&& castable, const register_value_t<decltype(reg)> in)
     {
-        using op_a_register_t = typename decltype(a)::register_t;
-        using op_b_register_t = typename decltype(b)::register_t;
-        static_assert(std::is_same_v<op_a_register_t,op_b_register_t>,
-            "only operations targeting fields from the same register may be composed");
-        return ops::composed<decltype(a),decltype(b)>{a,b};
+        return apply(register_cast(reg, castable), in);
     }
 
-    // template <typename... Ts>
-    // constexpr auto operator |(tuple<Ts...> tup, const any_register_op auto op)
-    // {        
-    //     using op_b_register_t = typename decltype(op)::register_t;
-    //     static_assert((std::is_same_v<typename Ts::register_t,op_b_register_t> and ...),
+    template <typename R>
+    constexpr auto tag_invoke(register_cast_t, const R, const any_register_op<R> auto op)
+    {
+        return op;
+    }
+
+    template <typename R>
+    constexpr auto tag_invoke(compose_t, const R reg, const any_register_op<R> auto a, const any_register_op<R> auto b)
+    {
+        auto cast_a = register_cast(reg,a);
+        auto cast_b = register_cast(reg,b);
+        check_compatibility(a.info,b.info);
+        return composed{a,b};
+    }
+
+    template <any_targeted_register_op T>
+    constexpr auto operator |(const T a, const auto&& b)
+    {
+        return compose(target_register_t<T>{},a,b);
+    }
+
+    template <any_targeted_register_op T>
+    constexpr auto operator |(const auto&& a, const T b)
+    {
+        return compose(target_register_t<T>{},a,b);
+    }
+
+    template <any_targeted_register_op T, any_targeted_register_op U>
+    constexpr auto operator |(const T a, const U b)
+    {
+        return compose(target_register_t<T>{},a,b);
+    }
+
+    // template <has_target_register T, has_target_register U>
+    // constexpr auto operator |(U a, T b)
+    // {
+    //     static_assert(same_register_as<target_register_t<T>,target_register_t<U>>,
     //         "only operations targeting fields from the same register may be composed");
-    //     return utl::apply([op](auto... args) {
-    //         return tuple{args...,op};
-    //     }, tup);
+    //     return compose(target_register_t<T>{},a,b);
     // }
+
+
+        
 
 } //namespace ops
 
@@ -202,21 +287,30 @@ template <typename F>
 constexpr auto assign(const F, const fields::value_t<F> value)
 {
     static_assert(fields::is_writable<F>, "field is not writable");
-    return ops::assign<F>{{},value};
+    // return ops::assign<F>{{},value};
+    auto aligned = fields::align_to_field<F>(value);
+    return ops::manipulate<typename F::register_t>{
+        aligned,
+        F::mask & ~aligned
+    };
 }
 
 template <typename F>
 constexpr auto set(const F, const fields::value_t<F> value)
 {
     static_assert(fields::is_writable<F>, "field is not writable");
-    return ops::set<F>{{value}};
+    // return ops::set<F>{{value}};
+    auto aligned = fields::align_to_field<F>(value);
+    return ops::manipulate<typename F::register_t>{aligned,fields::value_t<F>{}};
 }
 
 template <typename F>
 constexpr auto clear(const F, const fields::value_t<F> value)
 {
     static_assert(fields::is_writable<F>, "field is not writable");
-    return ops::clear<F>{{value}};
+    // return ops::clear<F>{{value}};
+    auto aligned = fields::align_to_field<F>(value);
+    return ops::manipulate<typename F::register_t>{fields::value_t<F>{},aligned};
 }
 
 template <typename F>
@@ -230,20 +324,25 @@ constexpr auto read(const F)
     return ops::read<F>{};
 }
 
-template <auto* A>
+
+template <typename R, auto* A>
 struct sfr {
     using value_t = std::remove_pointer_t<std::decay_t<decltype(A)>>;
-    using register_t = sfr;
+    using register_t = R;
     static constexpr auto width_bits = sizeof(value_t)*8u;
-    static constexpr volatile value_t* value = A;
+    static constexpr volatile value_t* loc = A;
 
-    constexpr explicit operator value_t() const { return *value; }
+    constexpr explicit operator value_t() const { return *loc; }
+    constexpr explicit operator value_t*() const { return A; }
+
+    static constexpr value_t* location() { return A; }
+    constexpr value_t value() const { return *loc; }
 
     //allows a literal register to take part in composition. just returns
     //the register's current value.
-    friend constexpr value_t tag_invoke(ops::apply_t, const sfr reg, const value_t)
+    friend constexpr value_t tag_invoke(ops::apply_t, const register_t, const register_t reg, const value_t)
     {
-        return *reg.value;
+        return reg.value();
     }
 
     // constexpr auto operator |(const ops::any_register_op auto op) const
@@ -260,13 +359,15 @@ struct sfr {
     // operators.
 
     //NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
-    constexpr auto const& operator =(const ops::any_register_op auto&& op) const
+    constexpr auto const& operator =(const auto&& op) const
     {
         using op_register_t = typename std::remove_reference_t<decltype(op)>::register_t;
-        static_assert((std::is_base_of_v<sfr,op_register_t>),
+        static_assert((std::is_base_of_v<register_t,op_register_t>),
             "operation must target fields in the target register");
         //apply the register operation
-        *value = ops::apply(op,value_t{});
+        constexpr auto nop = ops::manipulate<register_t>{};
+        const auto& this_register = static_cast<register_t const&>(*this);
+        *location() = ops::apply(this_register, ops::compose(this_register, nop,op), value_t{});
         return static_cast<op_register_t const&>(*this);
 
         //we have the underlying register type,
@@ -290,14 +391,17 @@ struct sfr {
         //- but I want type safety. so I think this is unavoidable.
     }
 
-    constexpr auto const& operator |=(const ops::any_register_op auto&& op) const
+    constexpr auto const& operator |=(const ops::any_register_op<register_t> auto op) const
     {
-        using op_register_t = typename std::remove_reference_t<decltype(op)>::register_t;
-        static_assert((std::is_base_of_v<sfr,op_register_t>),
-            "operation must target fields in the target register");
         //apply the register operation
-        *value = ops::apply(ops::composed{static_cast<op_register_t const&>(*this),op},value_t{});
+        *location() = ops::apply(static_cast<register_t const&>(*this), op, value());
         return *this;
+    }
+
+
+    constexpr bool operator ==(const any_register auto&& reg)
+    {
+        return same_register_as<sfr,decltype(reg)>;
     }
 };
 
