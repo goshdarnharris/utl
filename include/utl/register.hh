@@ -206,17 +206,17 @@ namespace ops {
         }
 
         template <typename T>
-        friend constexpr auto tag_invoke(compose_t, const register_t, const read op1, const manipulate<T> op2)
+        friend constexpr auto tag_invoke(compose_t, const read op1, const manipulate<T> op2)
         {
-            static_assert(same_register_as<register_t,T>, "only operations targeting the same"
-                " register may be composed");
+            // static_assert(same_register_as<register_t,T>, "only operations targeting the same"
+            //     " register may be composed");
             auto red = compose(op1.reduced,op2);
             return read{red.set_mask,red.clear_mask};
         }
 
         template <typename T>
         [[deprecated("any operations prior to a 'read' operation will be discarded")]]
-        friend constexpr auto tag_invoke(compose_t, const register_t, const any_register_op<register_t> auto, read op)
+        friend constexpr auto tag_invoke(compose_t, const any_register_op<register_t> auto, read op)
         {
             return op;
         }
@@ -233,13 +233,13 @@ namespace ops {
     }
 
     template <typename R>
-    constexpr auto tag_invoke(register_cast_t, const R, const any_register_op<R> auto op)
+    constexpr auto tag_invoke(register_cast_t, const any_register_op<R> auto op)
     {
         return op;
     }
 
     template <typename R>
-    constexpr auto tag_invoke(compose_t, const R reg, const any_register_op<R> auto a, const any_register_op<R> auto b)
+    constexpr auto tag_invoke(compose_t, const any_register_op<R> auto a, const any_register_op<R> auto b)
     {
         auto cast_a = register_cast(reg,a);
         auto cast_b = register_cast(reg,b);
@@ -247,22 +247,25 @@ namespace ops {
         return composed{a,b};
     }
 
+    template <any_
+    constexpr auto tag_invoke(compose_t, )
+
     template <any_targeted_register_op T>
     constexpr auto operator |(const T a, const auto&& b)
     {
-        return compose(target_register_t<T>{},a,b);
+        return compose(a,b);
     }
 
     template <any_targeted_register_op T>
     constexpr auto operator |(const auto&& a, const T b)
     {
-        return compose(target_register_t<T>{},a,b);
+        return compose(a,b);
     }
 
     template <any_targeted_register_op T, any_targeted_register_op U>
     constexpr auto operator |(const T a, const U b)
     {
-        return compose(target_register_t<T>{},a,b);
+        return compose(a,b);
     }
 
     // template <has_target_register T, has_target_register U>
@@ -270,7 +273,7 @@ namespace ops {
     // {
     //     static_assert(same_register_as<target_register_t<T>,target_register_t<U>>,
     //         "only operations targeting fields from the same register may be composed");
-    //     return compose(target_register_t<T>{},a,b);
+    //     return compose(a,b);
     // }
 
 
@@ -407,5 +410,16 @@ struct sfr {
 
 } //namespace utl::reg
 
+
+// changes to make:
+// - allow operations targeting distinct registers to be composed
+//  how best to do this? a tuple of reduced compositions...?
+//  ideally I'd have some kind of map from register type to a compose op
+// - apply should return a value if there's a single field read, a tuple if multiple
+// - should an op/composition be callable?
+// - peripherals should be accessed via an instance, so it can be easily passed around for generic code
+
+// need to be able to compose distinct register values. being able to represent a "configuration"
+// as a value and pass it around would be extremely useful, and maybe lends itself to mixins?
 
 

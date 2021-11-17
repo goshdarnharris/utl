@@ -169,35 +169,58 @@ constexpr auto tuple_cat(auto&&... args)
 template <typename T>
 struct tuple_t;
 
-/// Return a reference to the ith element of a tuple.
-template<std::size_t I, typename T, typename... Ts>
-constexpr auto& get_impl(tuple_impl<T, Ts...>& t)
-{
-    if constexpr(I == 0) {
-        return t.value;
-    } else {
-        return get_impl<I-1>(static_cast<tuple_impl<Ts...>&>(t));
+namespace detail {
+
+    /// Return a reference to the ith element of a tuple.
+    template<std::size_t I, typename T, typename... Ts>
+    constexpr auto& get_impl(tuple_impl<T, Ts...>& t)
+    {
+        if constexpr(I == 0) {
+            return t.value;
+        } else {
+            return get_impl<I-1>(static_cast<tuple_impl<Ts...>&>(t));
+        }
     }
+
+    /// Return a const reference to the ith element of a const tuple.
+    template<std::size_t I, typename T, typename... Ts>
+    constexpr const auto& get_impl(const tuple_impl<T, Ts...>& t)
+    {
+        if constexpr(I == 0) {        
+            return t.value;
+        } else {
+            return get_impl<I-1>(static_cast<const tuple_impl<Ts...>&>(t));
+        }
+    }
+
+    template <size_t N, typename T, typename... Ts>
+    struct get_type_index;
+
+    template <size_t N, typename T, typename... Ts>
+    struct get_type_index {
+        static_assert((std::same_as<Ts,T> || ...), "type list does not contain T");
+
+        static constexpr size_t value = std::same_as<get_t<N,Ts...>,T> ? N : get_type_index<N-1,T,Ts...>::value;
+    };
+
+    template <typename T, typename... Ts>
+    struct get_type_index<0,T,Ts...> {
+        static constexpr size_t value = 0;
+    };
 }
 
-/// Return a const reference to the ith element of a const tuple.
-template<std::size_t I, typename T, typename... Ts>
-constexpr const auto& get_impl(const tuple_impl<T, Ts...>& t)
-{
-    if constexpr(I == 0) {        
-        return t.value;
-    } else {
-        return get_impl<I-1>(static_cast<const tuple_impl<Ts...>&>(t));
-    }
-}
+template <typename T, typename... Ts>
+struct get_type_index : detail::get_type_index<sizeof...(Ts) - 1,T,Ts...> {};
 
+template <typename T, typename... Ts>
+inline constexpr size_t get_type_index_v = get_type_index<T,Ts...>::value;
 
 /// Return a reference to the ith element of a tuple.
 template<std::size_t I, typename... Ts>
 constexpr auto& get(tuple<Ts...>& t)
 {
     static_assert(I < tuple_size_v<tuple<Ts...>>, "out of bounds");
-    return get_impl<I,Ts...>(static_cast<tuple_impl<Ts...>&>(t));
+    return detail::get_impl<I,Ts...>(static_cast<tuple_impl<Ts...>&>(t));
 }
 
 /// Return a const reference to the ith element of a const tuple.
@@ -206,7 +229,7 @@ constexpr const auto& get(const tuple<Ts...>& t)
 {
     static_assert(I < tuple_size_v<tuple<Ts...>>, "out of bounds");
     
-    return get_impl<I,Ts...>(static_cast<const tuple_impl<Ts...>&>(t));
+    return detail::get_impl<I,Ts...>(static_cast<const tuple_impl<Ts...>&>(t));
 }
 
 /// Return an rvalue reference to the ith element of a tuple rvalue.
@@ -215,7 +238,7 @@ constexpr auto&& get(tuple<Ts...>&& t)
 {
     static_assert(I < tuple_size_v<tuple<Ts...>>, "out of bounds");
     using element_t = tuple_element_t<I,tuple<Ts...>>;
-    return std::forward<element_t&&>(utl::get_impl<I,Ts...>(t));
+    return std::forward<element_t&&>(detail::get_impl<I,Ts...>(t));
 }
 
 /// Return a const rvalue reference to the ith element of a const tuple rvalue.
@@ -224,7 +247,21 @@ constexpr const auto&& get(const tuple<Ts...>&& t)
 {
     static_assert(I < tuple_size_v<const tuple<Ts...>>, "out of bounds");
     using element_t = tuple_element_t<I,tuple<Ts...>>;
-    return std::forward<const element_t&&>(utl::get_impl<I,Ts...>(t));
+    return std::forward<const element_t&&>(detail::get_impl<I,Ts...>(t));
+}
+
+template <typename T, typename... Ts>
+constexpr auto get(tuple<Ts...>& t)
+{
+    constexpr auto idx = get_type_index_v<T,Ts...>;
+    return get<idx>(t);
+}
+
+template <typename T, typename... Ts>
+constexpr auto get(tuple<Ts...> const& t)
+{
+    constexpr auto idx = get_type_index_v<T,Ts...>;
+    return get<idx>(t);
 }
 
 template <typename F, typename T, size_t... Is>

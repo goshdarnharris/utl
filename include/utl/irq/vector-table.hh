@@ -8,6 +8,7 @@
 #include <utl/irq/unsafe.hh>
 #include <utl/irq/safe.hh>
 #include <utl/array.hh>
+#include <utl/register.hh>
 
 #include <utl/utility.hh>
 
@@ -74,6 +75,11 @@ struct [[nodiscard]] vector_table {
         };
 
         m_table[irq_t::number] = _bound_vector<F,capture>;
+    }
+
+    friend constexpr auto tag_invoke(reg::register_cast_t, auto r, vector_table& v)
+    {
+        return utl::reg::assign(r.TBLOFF, reinterpret_cast<const uint32_t>(&v));
     }
 };
 
