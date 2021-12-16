@@ -42,12 +42,12 @@ public:
         return compare(other);
     }
 
-    constexpr char at(size_t idx, char dfault)
+    constexpr char at(size_t idx)
     {
         if(idx < length()) {
             return access(idx);
         } else {
-            return dfault;
+            return '\0';
         }
     }
 
@@ -85,6 +85,9 @@ public:
         return data();
     }
 
+    //This function is only recursive during constant evaluation.
+    //FIXME: change to if consteval when supported
+    //NOLINTNEXTLINE(misc-no-recursion)
     [[nodiscard]] constexpr bool starts_with(string_view v) const
     {
         if(v.length() > length()) { return false; }
@@ -105,6 +108,9 @@ public:
         }
     }
 
+    //This function is only recursive during constant evaluation.
+    //FIXME: change to if consteval when supported
+    //NOLINTNEXTLINE(misc-no-recursion)
     [[nodiscard]] constexpr size_t find(string_view v, size_t pos = 0) const
     {        
         if(length() == 0) { return npos; }

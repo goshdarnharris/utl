@@ -13,7 +13,7 @@
 // #define UTL_UNUSED __attribute__((unused))
 
 #ifndef UTL_BUILD_NOCXX
-#define UTL_BUILD_NOCXX 1
+#define UTL_BUILD_NOCXX 1 //NOLINT(cppcoreguidelines-macro-usage)
 #endif
 
 #if UTL_BUILD_NOCXX == 1
@@ -54,18 +54,6 @@ template <typename T>
 struct imprecise {
     T min;
     T max;
-
-    constexpr imprecise(T min_v, T max_v) : min{min_v}, max{max_v} {}
-
-    template <typename U>
-    constexpr imprecise(imprecise<U>& other) :        
-        min{other.min}, max{other.max}
-    {}
-
-    template <typename U>
-    constexpr imprecise(imprecise<U>&& other) :        
-        min{std::move(other.min)}, max{std::move(other.max)}
-    {}
 
     constexpr bool contains(T value) const
     {

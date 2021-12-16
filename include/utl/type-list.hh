@@ -56,32 +56,6 @@ struct contains
 template <typename T, typename... Ts>
 inline constexpr bool contains_v = contains<T,Ts...>::value;
 
-namespace detail {
-
-template <size_t N, typename T, typename... Ts>
-struct get_type_index;
-
-template <size_t N, typename T, typename... Ts>
-struct get_type_index {
-    static_assert(contains_v<T,Ts...>, "type list does not contain T");
-
-    static constexpr size_t value = is_same_v<get_t<N,Ts...>,T> ? N : get_type_index<N-1,T,Ts...>::value;
-};
-
-template <typename T, typename... Ts>
-struct get_type_index<0,T,Ts...> {
-    static constexpr size_t value = 0;
-};
-
-} //namespace detail
-
-template <typename T, typename... Ts>
-struct get_type_index : detail::get_type_index<sizeof...(Ts) - 1,T,Ts...> {};
-
-template <typename T, typename... Ts>
-static constexpr size_t get_type_index_v = get_type_index<T,Ts...>::value;
-
-
 template <typename... Ts>
 struct type_list {
     static constexpr size_t size() { return sizeof...(Ts); }
@@ -98,6 +72,44 @@ struct type_list {
 
     using tuple_t = utl::tuple<Ts...>;
 };
+
+namespace detail {
+    template <size_t N, typename T, typename... Ts>
+    struct get_type_index;
+
+    template <size_t N, typename T, typename... Ts>
+    struct get_type_index {
+        static_assert((std::same_as<Ts,T> || ...), "type list does not contain T");
+
+        static constexpr size_t value = std::same_as<get_t<N,Ts...>,T> ? N : get_type_index<N-1,T,Ts...>::value;
+    };
+
+    template <typename T, typename... Ts>
+    struct get_type_index<0,T,Ts...> {
+        static constexpr size_t value = 0;
+    };
+}
+
+template <typename T, typename... Ts>
+struct get_type_index : detail::get_type_index<sizeof...(Ts) - 1,T,Ts...> {};
+
+template <typename T, typename... Ts>
+inline constexpr size_t get_type_index_v = get_type_index<T,Ts...>::value;
+
+
+template <typename T, typename... Ts>
+constexpr auto get(tuple<Ts...>& t)
+{
+    constexpr auto idx = get_type_index_v<T,Ts...>;
+    return get<idx>(t);
+}
+
+template <typename T, typename... Ts>
+constexpr auto get(tuple<Ts...> const& t)
+{
+    constexpr auto idx = get_type_index_v<T,Ts...>;
+    return get<idx>(t);
+}
 
 
 } //namespace utl

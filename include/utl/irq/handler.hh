@@ -34,7 +34,7 @@ constexpr auto get_static_handler_irq(static_handler_arg_t<N>*)
 }
 
 template <auto* F>
-using static_handler_irq_t = std::remove_reference_t<decltype(get_static_handler_irq(F))>;
+using static_handler_irq_t = std::decay_t<decltype(get_static_handler_irq(F))>;
 
 
 //FIXME: improve note output when this gets something that doesn't
@@ -80,7 +80,7 @@ template <typename T>
 using get_first_parameter_t = typename get_first_parameter_type<T>::type;
 
 template <auto* F>
-using bound_handler_irq_t = std::remove_reference_t<decltype(get_bound_handler_irq(F))>;
+using bound_handler_irq_t = std::decay_t<decltype(get_bound_handler_irq(F))>;
 
 //FIXME: I need a way to get the argument types...
 template <auto* F, typename... Ts>

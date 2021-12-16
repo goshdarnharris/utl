@@ -7,11 +7,16 @@ extern "C" {
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-prototypes"
+#pragma clang diagnostic ignored "-Wreserved-identifier"
 [[noreturn]]
-void __cxa_pure_virtual(void) //NOLINT(clang-diagnostic-missing-prototypes)
+void __cxa_pure_virtual(void) //NOLINT(clang-diagnostic-missing-prototypes, bugprone-reserved-identifier)
 {
     while(true);
 }
+
+//define unwind symbol so libunwind isn't linked in
+//FIXME: make configurable
+void __aeabi_unwind_cpp_pr0(void) {} //NOLINT(clang-diagnostic-missing-prototypes, bugprone-reserved-identifier)
 
 } // extern "C"
 #pragma clang diagnostic pop
@@ -30,29 +35,25 @@ void __cxa_pure_virtual(void) //NOLINT(clang-diagnostic-missing-prototypes)
 //     return malloc(size);
 // }
 
-__attribute__((weak))
-void* operator new(size_t size, void* storage) noexcept
-{
-    static_cast<void>(size);
-    return storage;
-}
+// __attribute__((weak))
+// void* operator new(size_t size, void* storage) noexcept
+// {
+//     static_cast<void>(size);
+//     return storage;
+// }
 
-__attribute__((weak))
-void operator delete(void* pointer) noexcept
-{
-    //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
-    free(pointer);
-}
+// __attribute__((weak))
+// void operator delete(void* pointer) noexcept
+// {
+//     //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
+//     free(pointer);
+// }
 
-__attribute__((weak))
-void operator delete[](void* pointer) noexcept
-{
-    //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
-    free(pointer);
-}
-
-//define unwind symbol so libunwind isn't linked in
-//FIXME: make configurable
-void __aeabi_unwind_cpp_pr0(void) {}
+// __attribute__((weak))
+// void operator delete[](void* pointer) noexcept
+// {
+//     //NOLINTNEXTLINE(cppcoreguidelines-owning-memory, cppcoreguidelines-no-malloc)
+//     free(pointer);
+// }
 
 #endif

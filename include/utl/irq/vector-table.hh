@@ -77,11 +77,17 @@ struct [[nodiscard]] vector_table {
         m_table[irq_t::number] = _bound_vector<F,capture>;
     }
 
-    friend constexpr auto tag_invoke(reg::register_cast_t, auto r, vector_table& v)
-    {
-        return utl::reg::assign(r.TBLOFF, reinterpret_cast<const uint32_t>(&v));
-    }
+    // friend constexpr auto tag_invoke(reg::register_cast_t, auto r, vector_table& v)
+    // {
+    //     return utl::reg::assign(r.TBLOFF, reinterpret_cast<const uint32_t>(&v));
+    // }
 };
+
+// template <size_t N>
+// constexpr auto make_set_vector_table(registers::any_register auto r, vector_table<N> const& v)
+// {
+//     return utl::registers::assign(r.TBLOFF, reinterpret_cast<const uint32_t>(&v));
+// }
 
 } //namespace utl::irq
 

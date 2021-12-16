@@ -47,11 +47,14 @@ linker_span(T*,T*) -> linker_span<T>;
 namespace detail {
 
 extern "C" {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreserved-identifier"
 extern section_table_entry __section_table_start;
 extern section_table_entry __section_table_end;
 
 extern bss_table_entry __bss_table_start;
 extern bss_table_entry __bss_table_end;
+#pragma clang diagnostic pop
 
 extern uint32_t _heap_start;
 extern uint32_t _heap_end;

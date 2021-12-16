@@ -126,7 +126,7 @@ namespace fmt {
         if(not check(iter)) return spec;
 
         //If the 2nd character is alignment, the first character is fill.
-        if(is_alignment(view.at(1,'\0'))) {            
+        if(is_alignment(view.at(1))) {            
             if(*iter == '{' or *iter == '}') {
                 //reject
             } else {      

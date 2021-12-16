@@ -75,7 +75,7 @@ constexpr bool is_numeric_char(char c)
 }
 
 template <auto V>
-    requires is_enum_v<decltype(V)>
+    requires is_enum_v<std::decay<decltype(V)>>
 constexpr string_view get_enum_name()
 {
     constexpr auto enum_v_name = type_name<enum_v<V>>;
@@ -88,11 +88,11 @@ constexpr string_view get_enum_name()
 
 using detail::enums::get_enum_name;
 
-template <auto V> requires is_enum_v<decltype(V)>
+template <auto V> requires is_enum_v<std::decay<decltype(V)>>
 inline constexpr string_view enum_name = get_enum_name<V>();
 
 template <auto V>
-    requires is_enum_v<decltype(V)>
+    requires is_enum_v<std::decay<decltype(V)>>
 constexpr bool is_valid_enum_value()
 {
     constexpr auto name = get_enum_name<V>();
@@ -103,7 +103,7 @@ template <auto V> requires is_enum_v<decltype(V)>
 inline constexpr bool enum_valid = is_valid_enum_value<V>();
 
 template <typename E, size_t Cursor = 0>
-    requires is_enum_v<E>
+    requires is_enum_v<std::decay_t<E>>
 constexpr size_t get_enum_count()
 {
     constexpr auto enum_v = static_cast<E>(Cursor);
@@ -114,11 +114,11 @@ constexpr size_t get_enum_count()
     }
 }
 
-template <typename E> requires is_enum_v<E>
+template <typename E> requires is_enum_v<std::decay_t<E>>
 inline constexpr size_t enum_count = get_enum_count<E>();
 
 template <typename E, size_t Cursor = 0>
-    requires is_enum_v<remove_reference_t<E>>
+    requires is_enum_v<std::decay_t<E>>
 constexpr string_view get_enum_name(E&& v)
 {
     using enum_t = std::remove_reference_t<E>;
@@ -134,7 +134,7 @@ constexpr string_view get_enum_name(E&& v)
 }
 
 template <typename E> 
-    requires is_enum_v<remove_reference_t<E>>
+    requires is_enum_v<std::decay_t<E>>
 constexpr bool is_valid_enum_value(E&& v)
 {
     constexpr auto name = get_enum_name(v);
@@ -143,7 +143,7 @@ constexpr bool is_valid_enum_value(E&& v)
 
 namespace fmt {
 template <typename E>
-    requires is_enum_v<remove_reference_t<E>>
+    requires is_enum_v<std::decay_t<E>>
 constexpr void _format(E const& arg, fmt::output& out, fmt::field const& f)
 {
     _format(get_enum_name(arg),out,f);
