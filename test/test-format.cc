@@ -1,5 +1,4 @@
-
-#include <CppUTest/TestHarness.h>
+﻿#include <CppUTest/TestHarness.h>
 #include <CppUTest/SimpleString.h>
 #include "packages/libawful/include/awful.hpp"
 #include "utl/test-types.hh"
