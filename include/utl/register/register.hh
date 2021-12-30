@@ -6,14 +6,14 @@
 #include <utl/integer.hh>
 #include <utl/tuple.hh>
 
-namespace utl::registers::reg {
+namespace utl::registers {
 
 
 
 template <typename T>
 concept any_register = requires(T r) {
-    r.value();
-    utl::integer::width(r.value());
+    decltype(r.value());
+    utl::integer::width(decltype(T::value()){});
 };
 
 template <any_register T>

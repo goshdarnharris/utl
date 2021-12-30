@@ -26,7 +26,7 @@ using target_value_t = typename target_register_t<T>::value_t;
 template <typename T>
 concept has_target_register = requires {
     typename T::target_register_t;
-} and reg::any_register<typename T::target_register_t>;
+} and any_register<typename T::target_register_t>;
 
 
 template <typename T>
@@ -60,7 +60,7 @@ namespace composed {
     // }
 
     // template <size_t I, size_t... Is>
-    // constexpr auto eval(const reg::any_register auto r, const auto v, any_composed_ops auto o)
+    // constexpr auto eval(const any_register auto r, const auto v, any_composed_ops auto o)
     // {
     //     return utl::get<I>(r)
     // }
@@ -70,7 +70,7 @@ namespace composed {
 
     BFG_TAG_INVOKE_DEF(flatten_operator);
 
-    constexpr auto tag_invoke(flatten_operator_t, any_op auto&& v, any_tuple auto&& accumulated)
+    constexpr auto tag_invoke(flatten_operator_t, auto&& v, any_tuple auto&& accumulated)
     {
         using value_t = decltype(v);
         using accum_t = decltype(accumulated);
@@ -112,40 +112,96 @@ namespace composed {
     // }
 
 
-    consteval auto merge(any_tuple auto&& source, any_tuple auto&& a, any_tuple auto&& b)
-    {
-        using a_head_t = std::decay_t<decltype(get<0>(a))>;
-        using b_head_t = std::decay_t<decltype(get<0>(b))>;
+    // consteval auto merge(any_tuple auto&& accum, any_tuple auto&& a, any_tuple auto&& b)
+    // {
+    //     using a_head_t = std::decay_t<decltype(get<0>(a))>;
+    //     using b_head_t = std::decay_t<decltype(get<0>(b))>;
 
-        constexpr auto compare = [](auto&& state, auto&& a_, auto&& b_)
-        {
-            return state.get(a_) <=> state.get(b_);
-        };
-
-
-        if constexpr(compare(state,get<0>(a), get<0>(b)) == std::partial_ordering::less) {
-            return tuple_cat(tuple{get<0>(a)}, accum, merge());
-        } else {
-
-        }
-
-        // return hof::fold(std::forward<a_t>(a), merge_op, utl::tuple{});
-    }
+    //     constexpr auto compare = [](auto&& state, auto&& a, auto&& b)
+    //     {
+    //         return state.get(a) <=> state.get(b);
+    //     };
 
 
-    constexpr auto tag_invoke(merge_sort_operator_t, auto&& merge_state, auto&& item)
-    {
-        // using stack_t = std::decay_t<decltype(merge_state.stack)>;
-        // if constexpr()
+    //     if constexpr(compare(state,get<0>(a), get<0>(b)) == std::partial_ordering::less) {
+    //         return tuple_cat(tuple{get<0>(a)}, accum, merge());
+    //     } else {
+
+    //     }
+
+    //     // return hof::fold(std::forward<a_t>(a), merge_op, utl::tuple{});
+    // }
+
+
+    // constexpr auto tag_invoke(merge_sort_operator_t, auto&& merge_state, auto&& item)
+    // {
+    //     // using stack_t = std::decay_t<decltype(merge_state.stack)>;
+    //     // if constexpr()
 
         
         
-    }
+    // }
 
     constexpr auto sort(any_tuple auto&& composition)
     {
-        using comp_t = decltype(composition);
-        return hof::fold(std::forward<comp_t>(composition), merge_sort_operator, utl::tuple{});
+        using comp_t = std::decay_t<decltype(composition)>;
+
+        constexpr auto push_stack = [](any_tuple auto&& stack, auto&& item)
+        {
+            using item_t = std::decay_t<decltype(item)>;
+            return tuple_cat(tuple{std::forward<item_t>(item)}, stack);
+        };
+
+        constexpr auto get_stack_tail = []<size_t I, size_t... Is>(any_tuple auto&& stack)
+        {
+            return tuple{get<Is>(stack)...};
+        };
+
+        constexpr auto pop_stack = [](any_tuple auto&& stack)
+        {
+            return get<0>(stack), get_stack_tail(stack);
+        };
+
+        constexpr auto do_comparison = [](size_t, size_t)
+        {
+            return std::weak_ordering::equivalent;
+        };
+
+        constexpr auto do_merge = [](any_tuple auto&& stack, auto&&, auto&&)
+        {
+            return stack;
+        };
+
+        constexpr auto sort_operator = [](any_tuple auto&& stack, auto&& item)
+        {
+            using item_t = std::decay_t<decltype(item)>;
+
+            constexpr size_t top_size = tuple_size_v<std::decay_t<decltype(get<0>(stack))>>;
+
+            if constexpr(top_size == 1) {
+                auto [top,new_stack] = pop_stack(stack);
+                return do_merge(new_stack, top, std::forward<item_t>(item));
+            } else {
+                return push_stack(stack,std::forward<item_t>(item));
+            }
+        };
+
+
+        
+        auto sorted_idxs = hof::fold(std::forward<comp_t>(composition), sort_operator, utl::tuple{});
+        static_assert(tuple_size_v<decltype(sorted_idxs)> == tuple_size_v<comp_t>);
+
+        constexpr auto make_sort_result = []<size_t... Is>(auto&& comp, auto&& idxs, std::index_sequence<Is...>)
+        {
+            using result_t = tuple<tuple_element_t<get<Is>(idxs),std::decay_t<decltype(comp)>>...>;
+            return result_t{get<get<Is>(idxs)>>(comp)...};
+        };
+
+        return make_sort_result(
+            std::forward<comp_t>(composition), 
+            sorted_idxs, 
+            std::make_index_sequence<tuple_size_v<comp_t>>{}
+        );
     }
 } //namespace composed
 
@@ -156,44 +212,42 @@ concept any_field_op = requires {
 };
 
 
-template <template <typename> typename P>
-struct detect {
-    template <typename T, typename U>
-    struct tmpl : std::false_type {};
 
-    template <typename U>
-        requires P<U>::value
-    struct tmpl<std::true_type,U> : std::true_type {};
+template <typename T, auto pred>
+concept all_elements = requires(T&& v) {
+    { 
+        hof::fold(
+            v,
+            [](auto&& accum, auto&& item) { 
+                constexpr bool accum_value = std::decay_t<decltype(accum)>::value;
+                constexpr bool pred_value = std::decay_t<decltype(pred(item))>::value;
+                if constexpr(accum_value and pred_value) return std::true_type{};
+                else return std::false_type{};
+            },
+            std::true_type{}
+        ) 
+    } -> std::same_as<std::true_type>;
 };
 
-template <typename T, template <typename> typename pred>
-concept all_elements = any_tuple<T> and hof::fold_types_t<T,detect<pred>::template tmpl,std::true_type>::value;
+constexpr auto identity_test = [](auto&& item) { return std::decay_t<decltype(item)>{}; };
+static_assert(all_elements<tuple<std::true_type,std::true_type,std::true_type>,identity_test>);
+static_assert(not all_elements<tuple<std::true_type,std::false_type,std::true_type>,identity_test>);
 
-template <typename T>
-struct bool_type_predicate : std::false_type {};
-template <>
-struct bool_type_predicate<std::true_type> : std::true_type {};
-
-static_assert(all_elements<tuple<std::true_type,std::true_type,std::true_type>,bool_type_predicate>);
-static_assert(not all_elements<tuple<std::true_type,std::false_type,std::true_type>,bool_type_predicate>);
-
-template <typename T>
-struct is_composed_or_op : std::false_type {};
-template <any_op T>
-struct is_composed_or_op<T> : std::true_type {};
-template <all_elements<is_composed_or_op> T>
-struct is_composed_or_op<T> : std::true_type {};
+struct is_op_predicate {
+    constexpr std::false_type operator()(auto&&) { return {}; }
+    constexpr std::true_type operator()(any_op auto&&) { return {}; }
+};
 
 template <typename T>
 concept any_composed_ops = utl::any_tuple<T> and 
-    all_elements<T,is_composed_or_op>;
+    all_elements<std::decay_t<decltype(composed::flatten(std::declval<T>()))>,is_op_predicate{}>;
 
 template <typename T>
 concept any_op_or_composition = any_op<T> or any_composed_ops<T>;
 
 
 constexpr auto tag_invoke(merge_t, any_field_op auto&&... ops)
-    requires reg::same_target_register<decltype(ops)...>
+    requires same_target_register<decltype(ops)...>
 {
     //all of the ops must have the same target register
     //then, merge the masks.
@@ -228,7 +282,8 @@ constexpr auto operator ==(any_op auto const& a, any_op auto const& b)
 constexpr auto apply(auto&&... args)
     requires ((any_op<decltype(args)> or any_composed_ops<decltype(args)>) and ...)
 {
-    any_tuple auto flat = composed::flatten(utl::tuple{std::forward<decltype(args)>(args)...});
+    any_tuple auto flattened = composed::flatten(utl::tuple{std::forward<decltype(args)>(args)...});
+    any_tuple auto sorted = composed::sort(flattened);
     //sort
     //split into contiguous chunks targeting the same register
     //merge
@@ -248,10 +303,10 @@ constexpr auto apply(auto&&... args)
 template <typename T>
 struct bitwise_modify;
 
-template <reg::any_register R>
+template <any_register R>
 struct bitwise_modify_register {
     using target_register_t = R;
-    using value_t = reg::value_t<R>;
+    using value_t = value_t<R>;
     R target;
     value_t set_mask;
     value_t clear_mask;

@@ -77,9 +77,9 @@ struct [[nodiscard]] vector_table {
         m_table[irq_t::number] = _bound_vector<F,capture>;
     }
 
-    // friend constexpr auto tag_invoke(reg::register_cast_t, auto r, vector_table& v)
+    // friend constexpr auto tag_invoke(register_cast_t, auto r, vector_table& v)
     // {
-    //     return utl::reg::assign(r.TBLOFF, reinterpret_cast<const uint32_t>(&v));
+    //     return utl::assign(r.TBLOFF, reinterpret_cast<const uint32_t>(&v));
     // }
 };
 

@@ -1,4 +1,3 @@
-/* vim: set tabstop=4 shiftwidth=4 expandtab filetype=cpp : */
 
 #include <CppUTest/TestHarness.h>
 #include <CppUTest/SimpleString.h>
@@ -47,12 +46,12 @@ TEST(Format,Alignment)
 }
 
 
-// // Formatting library for C++ - formatting library tests
-// //
-// // Copyright (c) 2012 - present, Victor Zverovich
-// // All rights reserved.
-// //
-// // For the license information refer to format.h.
+// Formatting library for C++ - formatting library tests
+//
+// Copyright (c) 2012 - present, Victor Zverovich
+// All rights reserved.
+//
+// For the license information refer to format.h.
 
 // #include <stdint.h>
 
