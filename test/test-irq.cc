@@ -15,7 +15,7 @@
 #include <utl/tuple.hh>
 #include <utl/logger.hh>
 #include <type_traits>
-#include <atomic>
+// #include <atomic>
 
 
 #include <utl/utility.hh>
@@ -284,6 +284,7 @@ static void my_handler(auto, bool& flag, uint32_t value)
 {
     flag = true;
     value = 0x55555555;
+    utl::maybe_unused(value);
 }
 
 TEST(IRQ,bind) {
@@ -295,35 +296,36 @@ TEST(IRQ,bind) {
     // - statically stores a tuple of the arguments in the generated function
     // - statically stores a pointer to the handler in the generated function
     //the compiler is able to see through 
-    const auto vector = utl::irq::static_bind(
-        some_irq{},
-        my_handler,
-        utl::irq::unsafe_ref(flag),
-        utl::irq::unsafe_ref(value)
-    );
+    // const auto vector = utl::irq::static_bind(
+    //     some_irq{},
+    //     my_handler,
+    //     utl::irq::unsafe_ref(flag),
+    //     utl::irq::unsafe_ref(value)
+    // );
 
-    const auto vector2 = utl::irq::static_bind(
-        some_irq{},
-        my_handler,
-        utl::irq::unsafe_ref(flag),
-        utl::irq::unsafe_cref(value)
-    );
+    // const auto vector2 = utl::irq::static_bind(
+    //     some_irq{},
+    //     my_handler,
+    //     utl::irq::unsafe_ref(flag),
+    //     utl::irq::unsafe_cref(value)
+    // );
 
-    const auto vector3 = utl::irq::static_bind(
-        some_irq{},
-        my_handler,
-        utl::irq::unsafe_ref(flag),
-        value
-    );
+    // const auto vector3 = utl::irq::static_bind(
+    //     some_irq{},
+    //     my_handler,
+    //     utl::irq::unsafe_ref(flag),
+    //     value
+    // );
+    // CHECK_EQUAL(true,false);
 
-    utl::maybe_unused(vector2,vector3);
+    // utl::maybe_unused(vector2,vector3);
 
     //this doesn't exist yet
     //set_vector(platform,some_irq{},vector);
 
     //pretend this is the interrupt happening.
     //
-    vector();
+    // vector();
 
     CHECK_EQUAL(true,flag);
     CHECK_EQUAL(0x55555555,value);

@@ -1,4 +1,4 @@
-﻿// Copyright 2021 George Harris
+﻿// Copyright 2022 George Harris
 //
 // All portions of UTL (github.com/goshdarnharris/utl) are licensed
 // under the Apache License, Version 2.0 (the "License"). 
@@ -15,16 +15,19 @@
 
 namespace utl::registers {
 
-
+BFG_TAG_INVOKE_DEF(reset_value);
+BFG_TAG_INVOKE_DEF(width);
+BFG_TAG_INVOKE_DEF(write);
+BFG_TAG_INVOKE_DEF(read);
 
 template <typename T>
-concept any_register = requires(T r) {
-    decltype(r.value());
-    utl::integer::width(decltype(T::value()){});
+concept any_register = requires(const T r) {
+    { width(r) } -> utl::integer::any_unsigned_convertible;
+    { reset_value(r) } -> utl::integer::any_unsigned_convertible;
 };
 
-template <any_register T>
-using value_t = decltype(T::value());
+template <typename T>
+using value_t = std::decay_t<decltype(reset_value(declval<T>()))>;
 
 template <typename T, typename R>
 concept same_register_as = std::same_as<std::decay_t<R>, std::decay_t<T>>;
@@ -32,39 +35,16 @@ concept same_register_as = std::same_as<std::decay_t<R>, std::decay_t<T>>;
 template <typename... Ts>
 concept same_target_register = ((any_register<Ts> and same_register_as<tuple_element_t<0,tuple<Ts...>>,Ts>) and ...);
 
-
-BFG_TAG_INVOKE_DEF(write);
-BFG_TAG_INVOKE_DEF(read);
-
-
+template <typename T>
+concept any_readable_register = any_register<T> and
+    requires(T r) {
+        { read(r) } -> utl::integer::any_unsigned_convertible;
+    };
 
 
 template <typename T>
-concept any_memory_mapped_register = any_register<T>
-    and requires(T r) {
-        { r.location() } -> std::same_as<volatile value_t<T>*>;
-};
-
-constexpr void tag_invoke(write_t, any_memory_mapped_register auto r, value_t<decltype(r)> v)
-{
-    *r.location() = v;
-}
-
-constexpr auto tag_invoke(read_t, any_memory_mapped_register auto r)
-{
-    return *r.location();
-}
-
-template <size_t W, integer::uintn_t<W>* A>
-struct memory_mapped {
-    // static constexpr size_t width = W;
-    using value_t = integer::uintn_t<W>;
-    // static volatile constexpr value_t* location = A;
-
-    static constexpr volatile value_t* location() { return A; }
-    static constexpr size_t width() { return W; }
-    static constexpr value_t value() { return *location(); }
-};
-
-
+concept any_writable_register = any_register<T> and
+    requires(T r, utl::integer::unsigned_cast_t<T> v) {
+        { write(r,v) } -> std::same_as<void>;
+    };
 } //namespace utl::registers

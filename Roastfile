@@ -66,6 +66,7 @@ def configure(context):
     context.builder.append_cflag("-DCPPUTEST_USE_STD_C_LIB=1")
     context.builder.append_cflag("-DCPPUTEST_USE_STD_CPP_LIB=0")
     context.builder.append_cflag("-DCPPUTEST_USE_MEM_LEAK_DETECTION=0")
+    context.builder.append_cflag("-DUTL_ENABLE_NEW_DELETE")
     context.builder.append_cflag("-std=c++20")
     context.builder.append_cflag("-Werror")
     context.builder.append_cflag("-Weverything")
@@ -98,7 +99,7 @@ def configure(context):
 
         context.builder.append_cflag("-Wno-global-constructors")
         context.builder.append_cflag("-Wno-exit-time-destructors")
-        context.builder.append_cflag("-Wno-error-deprecated-declarations")
+        context.builder.append_cflag("-Wno-error=deprecated-declarations")
         context.builder.append_cflag("-Wno-float-equal")
 
         # add_sanitizers(context.builder)
@@ -136,6 +137,7 @@ def configure(context):
 
 
     context.builder.append_cflag("-isystem packages/cpputest/include")
+    context.builder.append_include("packages/duck_invoke/include")
     context.builder.append_include("include")
     context.builder.append_include("test-platform")
     context.builder.append_include(".")

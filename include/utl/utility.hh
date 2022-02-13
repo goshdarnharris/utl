@@ -14,4 +14,7 @@ template<class T>
 
 template<template <typename> typename T>
 [[deprecated]] constexpr inline bool print_unary_template = true;
+
+template <auto V>
+[[deprecated]] constexpr inline bool print_value = true;
 } //namespace utl

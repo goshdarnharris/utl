@@ -6,6 +6,7 @@
 #include <utl/logger.hh>
 #include <utl/format.hh>
 #include <utl/string.hh>
+#include <bfg/tag_invoke.h>
 #include "test-support.hh"
 #include <stdio.h>
 #include <limits>
@@ -18,7 +19,7 @@ struct foo {
     int value;
 };
 
-constexpr void _format(foo const& arg, utl::fmt::output& out, utl::fmt::field const& f)
+constexpr void format_arg(foo const& arg, utl::fmt::output& out, utl::fmt::field const& f)
 {
     utl::maybe_unused(f);
     utl::format_to(out, "{:#06x}", arg.value);
@@ -1457,7 +1458,7 @@ TEST(Format, FormatStringView) {
 struct string_viewable {};
 
 // FMT_BEGIN_NAMESPACE
-constexpr void _format(string_viewable, utl::fmt::output& out, utl::fmt::field const&)
+constexpr void format_arg(string_viewable, utl::fmt::output& out, utl::fmt::field const&)
 {
   out("foo");
 }
@@ -1472,7 +1473,7 @@ struct explicitly_convertible_to_std_string_view {
   explicit operator utl::string_view() const { return "foo"; }
 };
 
-constexpr void _format(explicitly_convertible_to_std_string_view const& arg, utl::fmt::output& out, 
+constexpr void format_arg(explicitly_convertible_to_std_string_view const& arg, utl::fmt::output& out, 
   utl::fmt::field const& f)
 {
   utl::maybe_unused(f);
@@ -1552,9 +1553,9 @@ class Answer {};
 // };
 // FMT_END_NAMESPACE
 
-constexpr void _format(Answer, utl::fmt::output& out, utl::fmt::field const& f)
+constexpr void format_arg(Answer, utl::fmt::output& out, utl::fmt::field const& f)
 {
-  _format(42,out,f);
+  format_arg(42,out,f);
 }
 
 TEST(Format, CustomFormat) {

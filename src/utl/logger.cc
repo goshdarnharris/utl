@@ -17,6 +17,7 @@ result<void> output_base::write(utl::string_view const& s) const {
     return utl::success();
 }
 
+//NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static output_base const * global_output = nullptr;
 
 output_base const * get_global_output() {

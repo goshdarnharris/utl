@@ -8,6 +8,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <concepts>
 
 namespace utl::integer {
 
@@ -42,33 +43,75 @@ template <size_t W>
 using uintn_t = typename uintn_impl<W>::type;
 
 
+BFG_TAG_INVOKE_DEF(width);
 
 template <size_t W>
-consteval size_t width(intn_t<W>)
+constexpr size_t tag_invoke(width_t, const _ExtInt(W))
 {
     return W;
 }
 
 template <size_t W>
-consteval size_t width(uintn_t<W>)
+constexpr size_t tag_invoke(width_t, const unsigned _ExtInt(W))
 {
     return W;
 }
 
-consteval size_t width(uint8_t)
+constexpr size_t tag_invoke(width_t, const std::integral auto v)
 {
-    return 8;
+    return sizeof(v)*8;
 }
 
-consteval size_t width(uint16_t)
+static_assert(std::integral<unsigned int>);
+static_assert(tag_invoke(width, intn_t<12>{}));
+static_assert(::utl::integer::tag_invoke<12>(width, intn_t<12>{}));
+static_assert(bfg::tag_invoke(width, intn_t<12>{}));
+static_assert(width(intn_t<12>{}) == 12);
+static_assert(width(uintn_t<12>{}) == 12);
+static_assert(width(char{}) == 8);
+static_assert(width(short{}) == 16);
+
+template <typename T>
+concept has_integer_width = requires(T v) {
+    { utl::integer::width(v) } -> std::convertible_to<size_t>;
+};
+
+template <size_t W>
+constexpr auto signed_cast(const _ExtInt(W) v)
 {
-    return 16;
+    return static_cast<intn_t<W>>(v);
 }
 
-consteval size_t width(uint32_t)
+constexpr auto signed_cast(std::integral auto v)
 {
-    return 32;
+    return static_cast<std::make_signed_t<decltype(v)>>(v);
 }
 
-
+template <size_t W>
+constexpr auto unsigned_cast(const unsigned _ExtInt(W) v)
+{
+    return static_cast<intn_t<W>>(v);
 }
+
+constexpr auto unsigned_cast(std::integral auto v)
+{
+    return static_cast<std::make_unsigned_t<decltype(v)>>(v);
+}
+
+template <typename T>
+concept any_signed_convertible = has_integer_width<T> and requires(T v) {
+    signed_cast(v);
+};
+
+template <typename T>
+concept any_unsigned_convertible = has_integer_width<T> and requires(T v) {
+    unsigned_cast(v);
+};
+
+template <any_signed_convertible T>
+using signed_cast_t = decltype(signed_cast(declval<T>()));
+
+template <any_unsigned_convertible T>
+using unsigned_cast_t = decltype(unsigned_cast(declval<T>()));
+
+} //namespace utl::integer

@@ -209,17 +209,12 @@ namespace fold_test {
     } //namespace tuples
 };
 
-
 } //namespace hof
 
 template <bool V>
 struct foo {
     static constexpr auto v = V;
 };
-
-template<class T>
-[[deprecated]] constexpr inline bool print_type = true;
-
 
 constexpr auto my_tuple_cat(auto&&... args)
 {

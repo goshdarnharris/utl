@@ -7,9 +7,13 @@
 
 #pragma once
 
+#include <utl/integer.hh>
 #include <utl/register/register.hh>
 
 namespace utl::registers::field {
+
+
+
 
 template <typename T>
 using register_t = typename std::decay_t<T>::register_t;
@@ -25,6 +29,12 @@ concept any_field = requires(T r) {
     typename T::register_t;
     typename T::value_t;
 } and any_register<typename T::register_t>;
+
+
+consteval auto tag_invoke(utl::registers::width_t, any_field auto f)
+{
+    return utl::integer::width(value_t<decltype(f)>{});
+}
 
 template <typename T, typename R>
 concept any_field_of = any_field<T> and same_register_as<R,register_t<T>>;

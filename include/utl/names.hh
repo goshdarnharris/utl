@@ -8,6 +8,8 @@
 #pragma once
 #include <utl/string-view.hh>
 #include <utl/format.hh>
+#include <utl/traits.hh>
+#include <utl/utility.hh>
 
 namespace utl {
 
@@ -71,6 +73,8 @@ struct enum_v {
 enum class probe_enum {
     HELLO
 };
+inline constexpr auto probe_enum_invalid_value = 
+    static_cast<probe_enum>(static_cast<std::underlying_type_t<probe_enum>>(probe_enum::HELLO) + 1);
 
 inline constexpr auto probed_name = type_name<enum_v<probe_enum::HELLO>>;
 inline constexpr auto value_name_start_pos = probed_name.find("enum_v<") + "enum_v<"_sv.size();
@@ -82,7 +86,7 @@ constexpr bool is_numeric_char(char c)
 }
 
 template <auto V>
-    requires is_enum_v<std::decay<decltype(V)>>
+    requires is_enum_v<std::decay_t<decltype(V)>>
 constexpr string_view get_enum_name()
 {
     constexpr auto enum_v_name = type_name<enum_v<V>>;
@@ -95,16 +99,20 @@ constexpr string_view get_enum_name()
 
 using detail::enums::get_enum_name;
 
-template <auto V> requires is_enum_v<std::decay<decltype(V)>>
+
+
+template <auto V> requires is_enum_v<std::decay_t<decltype(V)>>
 inline constexpr string_view enum_name = get_enum_name<V>();
 
 template <auto V>
-    requires is_enum_v<std::decay<decltype(V)>>
+    requires is_enum_v<std::decay_t<decltype(V)>>
 constexpr bool is_valid_enum_value()
 {
     constexpr auto name = get_enum_name<V>();
-    return detail::enums::is_numeric_char(name[0]);
+    return not (name[0] == '('); //invalid names are of the form (type)value, e.g. (probe_enum)1
 }
+
+//(demo)4
 
 template <auto V> requires is_enum_v<decltype(V)>
 inline constexpr bool enum_valid = is_valid_enum_value<V>();
@@ -114,7 +122,7 @@ template <typename E, size_t Cursor = 0>
 constexpr size_t get_enum_count()
 {
     constexpr auto enum_v = static_cast<E>(Cursor);
-    if constexpr (enum_valid<enum_v>) {
+    if constexpr (not enum_valid<enum_v>) {
         return Cursor;
     } else {
         return get_enum_count<E,Cursor+1>();
@@ -145,15 +153,15 @@ template <typename E>
 constexpr bool is_valid_enum_value(E&& v)
 {
     constexpr auto name = get_enum_name(v);
-    return detail::enums::is_numeric_char(name.data()[0]);
+    return not (name[0] == '('); //invalid names are of the form (type)value, e.g. (probe_enum)1
 }
 
 namespace fmt {
 template <typename E>
     requires is_enum_v<std::decay_t<E>>
-constexpr void _format(E const& arg, fmt::output& out, fmt::field const& f)
+constexpr void format_arg(E const& arg, fmt::output& out, fmt::field const& f)
 {
-    _format(get_enum_name(arg),out,f);
+    format_arg(get_enum_name(arg),out,f);
 }
 
 }

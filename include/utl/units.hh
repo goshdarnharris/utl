@@ -21,7 +21,7 @@ constexpr int32_t ipow(int32_t base, int32_t exp, int32_t result = 1) {
 //don't want to lose sight that this is all fixed point.
 //TODO: consider factoring the idea of "precision" out from the unit types.
 
-inline constexpr size_t DECIMAL_ORDER = 10;
+inline constexpr size_t DECIMAL_BASE = 10;
 inline constexpr int ORDER_PICO = -12;
 inline constexpr int ORDER_NANO = -9;
 inline constexpr int ORDER_MICRO = -6;
@@ -50,7 +50,7 @@ struct metric {
 
     template <int32_t Magnitude_Other, typename OverflowPolicy_Other, typename TruncatePolicy_Other>
     constexpr metric(metric<base_unit_t, Magnitude_Other, OverflowPolicy_Other, TruncatePolicy_Other> const& other) 
-        : value{other.value * ipow(DECIMAL_ORDER, Magnitude_Other - Magnitude)}
+        : value{other.value * ipow(DECIMAL_BASE, Magnitude_Other - Magnitude)}
     {
         overflow_policy_t::check(value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(value, Magnitude_Other, Magnitude);
@@ -58,7 +58,7 @@ struct metric {
 
     template <int32_t Magnitude_Other, typename OverflowPolicy_Other, typename TruncatePolicy_Other>
     constexpr metric(metric<base_unit_t, Magnitude_Other, OverflowPolicy_Other, TruncatePolicy_Other> const&& other) 
-        : value{other.value * ipow(DECIMAL_ORDER, Magnitude_Other - Magnitude)}
+        : value{other.value * ipow(DECIMAL_BASE, Magnitude_Other - Magnitude)}
     {
         overflow_policy_t::check(other.value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(other.value, Magnitude_Other, Magnitude);
@@ -67,7 +67,7 @@ struct metric {
     template <int32_t Magnitude_Other, typename OverflowPolicy_Other, typename TruncatePolicy_Other>
     metric& operator=(metric<base_unit_t, Magnitude_Other, OverflowPolicy_Other, TruncatePolicy_Other> const& other)
     {
-        value = other.value * ipow(DECIMAL_ORDER, Magnitude_Other - Magnitude);
+        value = other.value * ipow(DECIMAL_BASE, Magnitude_Other - Magnitude);
         overflow_policy_t::check(other.value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(other.value, Magnitude_Other, Magnitude);
     }
@@ -75,7 +75,7 @@ struct metric {
     template <int32_t Magnitude_Other, typename OverflowPolicy_Other, typename TruncatePolicy_Other>
     metric& operator=(metric<base_unit_t, Magnitude_Other, OverflowPolicy_Other, TruncatePolicy_Other>&& other)
     {
-        value = other.value * ipow(DECIMAL_ORDER, Magnitude_Other - Magnitude);
+        value = other.value * ipow(DECIMAL_BASE, Magnitude_Other - Magnitude);
         overflow_policy_t::check(other.value, Magnitude_Other, Magnitude);
         truncate_policy_t::check(other.value, Magnitude_Other, Magnitude);
     }

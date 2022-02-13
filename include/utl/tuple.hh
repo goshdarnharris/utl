@@ -48,7 +48,7 @@ namespace detail {
 
     template <typename T>
     concept has_tuple_size = requires {
-        { tuple_size<T>::value } -> std::convertible_to<size_t>;
+        { tuple_size_v<T> } -> std::convertible_to<size_t>;
     };
 
     template <typename T>
@@ -65,8 +65,8 @@ namespace detail {
 } //namespace detail
 
 template <typename T>
-concept any_tuple = detail::has_tuple_size<T>
-    and (tuple_size_v<T> == 0 or detail::has_get<T>);
+concept any_tuple = detail::has_tuple_size<std::decay_t<T>>
+    and (tuple_size_v<std::decay_t<T>> == 0 or detail::has_get<std::decay_t<T>>);
 
 
 template <typename... Ts>
