@@ -68,7 +68,7 @@ constexpr format_options parse_format_options(utl::string_view view, format_opti
         size_t mark = pos;
         size_t count = 1;
         while(check_advance() and is_digit(*iter)) count++;
-        return ascii_to_int(view.substr(mark,count));
+        return ascii_to_uint(view.substr(mark,count));
     };
     
     if(not check(iter)) return spec;

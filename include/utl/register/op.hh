@@ -13,6 +13,32 @@
 #include <utl/register/field.hh>
 #include <utl/hof.hh>
 
+
+
+
+
+
+
+template <any_field T>
+struct bit_manipulate {
+    utl::register::value_t<T> set;    
+    utl::register::value_t<T> clr;
+
+    consteval auto operator()(any_register auto&& r, utl::register::value_t<T> v)
+    {
+        static_assert(utl::registers::contains_field<decltype(r),T>());
+        return utl::tuple{r, (v | field::apply_offset());
+    }
+};
+
+
+
+
+
+
+
+
+
 namespace utl::registers::ops {
 
 BFG_TAG_INVOKE_DEF(merge);

@@ -21,7 +21,7 @@ private:
 public:
     constexpr arg_spec(utl::string_view view)
         : m_mode{view.length() > 0 and is_digit(view[0]) ? modes::MANUAL : modes::AUTOMATIC},
-        m_id{m_mode == modes::MANUAL ? ascii_to_int(view) : 0}
+        m_id{m_mode == modes::MANUAL ? ascii_to_uint(view) : 0}
     {}
     constexpr arg_spec(size_t id_) : m_mode{modes::MANUAL}, m_id{id_} {}
     constexpr arg_spec() = default;

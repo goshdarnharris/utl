@@ -115,6 +115,11 @@ public:
         }
     }
 
+    [[nodiscard]] constexpr bool starts_with(char v) const
+    {
+        return access(0) == v;
+    }
+
     //This function is only recursive during constant evaluation.
     //FIXME: change to if consteval when supported
     //NOLINTNEXTLINE(misc-no-recursion)
