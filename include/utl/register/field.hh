@@ -15,29 +15,6 @@
 
 namespace utl::registers::field {
 
-// template <utl::integer::convertible_to_unsigned T>
-// struct field {
-//     T value;
-
-
-// };
-
-
-// enum class my_options : uintn_t<1> {
-//     ON = 0b0,
-//     OFF = 0x1
-// };
-
-// template <any_uart T>
-// struct field_value_t<T::SR_t::CTS_t> {
-//     using type = my_options;
-// }
-
-// assign(uart.SR.CTS, uart_t::SR_t::CTS_t::option)
-// assign(uart_t::SR::CTS, uart_t::SR::CTS::option)
-// assign(uart_t::SR::CTS::option, uart_t::SR::TXE{0x50})
-// assign(value_t<uart.SR.CTS>::option, value_t<uart.SR.TXE>{0x50})
-
 template <typename T>
 using register_t = typename std::decay_t<T>::register_t;
 
@@ -77,31 +54,51 @@ struct field {
     using value_t = uintn_t<Width>;
     static constexpr size_t width() { return Width; }
     static constexpr size_t offset() { return Offset; }
+
+    friend constexpr auto tag_invoke(customize::width_t, type_v<field>)
+    {
+        return Width;
+    }
 };
 
 template <any_register R, size_t Offset, size_t Width>
 struct read_only : field<R,Offset,Width> {
-
+    friend constexpr auto tag_invoke(customize::width_t, type_v<read_only>)
+    {
+        return Width;
+    }
 };
 
 template <any_register R, size_t Offset, size_t Width>
 struct write_only : field<R,Offset,Width> {
-
+    friend constexpr auto tag_invoke(customize::width_t, type_v<write_only>)
+    {
+        return Width;
+    }
 };
 
 template <any_register R, size_t Offset, size_t Width>
 struct read_write : field<R,Offset,Width> {
-
+    friend constexpr auto tag_invoke(customize::width_t, type_v<read_write>)
+    {
+        return Width;
+    }
 };
 
 template <any_register R, size_t Offset, size_t Width>
 struct write_once : field<R,Offset,Width> {
-
+    friend constexpr auto tag_invoke(customize::width_t, type_v<write_once>)
+    {
+        return Width;
+    }
 };
 
 template <any_register R, size_t Offset, size_t Width>
 struct read_write_once {
-
+    friend constexpr auto tag_invoke(customize::width_t, type_v<read_write_once>)
+    {
+        return Width;
+    }
 };
 
 } //namespace utl::registers::field

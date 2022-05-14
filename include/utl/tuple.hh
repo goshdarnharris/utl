@@ -321,7 +321,7 @@ struct tuple_element : utl::tuple_element<I,T> {};
 template <typename T>
 struct tuple_size : utl::tuple_size<T> {};
 
-template <typename T>
-inline constexpr size_t tuple_size_v = utl::tuple_size_v<T>;
+// template <typename T>
+// inline constexpr size_t tuple_size_v = utl::tuple_size_v<T>;
 
 } //namespace std

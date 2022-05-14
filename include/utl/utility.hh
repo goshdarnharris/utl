@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <concepts>
+
 namespace utl {
 template<class T>
 [[deprecated]] constexpr inline bool print_type = true;
@@ -17,4 +19,25 @@ template<template <typename> typename T>
 
 template <auto V>
 [[deprecated]] constexpr inline bool print_value = true;
+
+
+
+template <typename T>
+struct type_v {
+    using type = T;
+
+    //FIXME: should be conditionally explicit
+    template <typename U>
+        requires std::convertible_to<type,typename U::type>
+    constexpr operator type_v<U>()
+    {
+        return type_v<U>{};
+    }
+};
+
+template <typename T>
+struct explicit_type_v {
+
+};
+
 } //namespace utl

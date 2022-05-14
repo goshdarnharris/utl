@@ -8,125 +8,189 @@
 #pragma once
 
 #include <utl/utl.hh>
-#include <utl/integer.hh>
-#include <bit>
+#include <utl/bitset.hh>
+#include <utl/hof/fold.hh>
+#include <concepts>
+#include <utl/utility.hh>
 
 namespace utl {
 
 template <typename T>
-concept any_bitfield = requires(T v) {
-    // utl::integer::unsigned_cast(v); //It can be cast to a uintn_t<>
-    v.value(); //It has a value
-    v.width(); //It has a width
-    //That value can be cast to a uintn_t<>,
-    utl::integer::unsigned_cast(v.value());
-    //It can be explicitly cast to its value type
-    // static_cast<decltype(v.value())>(v);
+concept any_bitfield = any_bitset<T> and requires {
+    typename T::tag_t;
+    { T::tag } -> std::same_as<const typename T::tag_t&>;
 };
 
-template <any_bitfield T>
-using bitfield_value_t = decltype(std::declval<std::decay_t<T>>().value());
+template <auto N, utl::integer::convertible_to_unsigned T>
+struct bitfield : public bitset<T> {
+    using tag_t = std::decay_t<decltype(N)>;
+    static constexpr auto tag = N;
+
+    template <utl::any_enum auto V>
+    static constexpr bool matches_tag()
+    {
+        using value_t = std::decay_t<decltype(V)>;
+        if constexpr(std::same_as<tag_t,value_t>) {
+            return V == tag;
+        }
+        return false;
+    }
+};
+
+template <auto N, utl::integer::convertible_to_unsigned W, utl::integer::convertible_to_unsigned T, size_t O>
+struct bitfield_view : public bitspan<W,T,O> {
+    using bitspan<W,T,O>::operator=;
+    using tag_t = std::decay_t<decltype(N)>;
+    static constexpr auto tag = N;
+
+    template <utl::any_enum auto V>
+    static constexpr bool matches_tag()
+    {
+        using value_t = std::decay_t<decltype(V)>;
+        if constexpr(std::same_as<tag_t,value_t>) {
+            return V == tag;
+        }
+        return false;
+    }
+};
+
+template <typename T, auto V>
+concept has_field = utl::any_enum<decltype(V)> and requires() {
+    std::decay_t<T>::template find_field_by_enum_tag<V>();
+} and (std::decay_t<T>::template find_field_by_enum_tag<V>().found());
 
 template <typename T>
-concept any_enumerated_bitfield = any_bitfield<T> and std::is_enum_v<bitfield_value_t<T>>;
+concept any_bitstruct = requires(T v) {
+    { v.width() } -> std::same_as<size_t>;
+    //test if width is constexpr
+    typename std::decay_t<T>::value_t;
+    typename std::decay_t<T>::tag_t;
+    { v.value } -> utl::integer::convertible_to_unsigned;
+    // { v.value } -> std::common_with<typename T::value_t>;
+} and (utl::integer::width<typename std::decay_t<T>::value_t>() == std::decay_t<T>::width());
 
+template <auto O, typename T>
+struct accumulator {
+    static constexpr size_t offset = O;
+    using found_t = T;
+    static constexpr bool found() { return not std::same_as<void,found_t>; }
+};
 
-template <utl::integer::convertible_to_unsigned T>
-struct bitfield {
-    T val;
+template <any_bitfield T, any_bitfield... Ts>
+    requires (std::common_with<typename T::tag_t, typename Ts::tag_t> and ...)
+struct bitstruct {
+    static constexpr size_t width() { return T::width() + (Ts::width() + ... + 0); }
+    using tag_t = std::common_type_t<typename T::tag_t, typename Ts::tag_t...>;
+    
+    uintn_t<width()> value;
+    using value_t = std::remove_reference_t<decltype((value))>;
 
-    constexpr T value()
+    template <utl::any_enum auto V>
+    static constexpr auto find_field_by_enum_tag()
     {
-        return val;
+        //FIXME: this should be generalized; it's handy   
+        constexpr auto find_accumulate = [](auto&& accum, auto&& item) {
+            using item_t = std::decay_t<decltype(item)>;
+            using accum_t = std::decay_t<decltype(accum)>;
+
+            if constexpr(item_t::template matches_tag<V>()) {
+                return accumulator<accum_t::offset,item_t>{};
+            } else if constexpr(not accum_t::found()) {
+                return accumulator<accum_t::offset + item_t::width(), typename accum_t::found_t>{};
+            } else {
+                return accum;
+            }
+        };
+
+        using accum_t = hof::foldl_result_t<tuple<T,Ts...>&, accumulator<0,void>, decltype(find_accumulate)>;
+        // static_assert(accum_t::found(), "bitstruct does not contain a field matching provided tag");
+        
+        return accum_t{};
     }
 
-    constexpr size_t width()
+    constexpr bitstruct() = default;
+    constexpr bitstruct(bitstruct const&) = default;
+    constexpr bitstruct(bitstruct const volatile& other) : value{other.value} {}
+    constexpr bitstruct(bitstruct&& other) = default;
+
+    constexpr auto& operator=(bitstruct const& other)
     {
-        return utl::integer::width<T>();
+        value = other.value;
+        return *this;
     }
 
-    explicit constexpr operator auto() const
+    constexpr auto& operator=(bitstruct&& other)
     {
-        return utl::integer::unsigned_cast(val);
+        value = other.value;
+        return *this;
     }
 
-    constexpr auto& operator=(T v) 
-    { 
-        val = v; 
+    constexpr auto& operator=(bitstruct const& other) volatile
+    {
+        value = other.value;
+        return *this;
+    }
+
+    constexpr auto& operator=(bitstruct&& other) volatile
+    {
+        value = other.value;
         return *this;
     }
 };
 
-static_assert(any_bitfield<bitfield<uint8_t>>);
+template <utl::any_enum auto V>
+constexpr auto get_field(any_bitstruct auto&& b)
+{
+    using accum_t = std::decay_t<decltype(b.template find_field_by_enum_tag<V>())>;
+    using field_value_t = typename accum_t::found_t::value_t;
+    using bitstruct_value_t = std::remove_reference_t<decltype((b.value))>;
+    constexpr auto field_offset = accum_t::offset;
 
-// template <typename T>
-// concept any_bitspan = requires(T v) {
+    return bitfield_view<V,bitstruct_value_t,field_value_t,field_offset>{b.value};
+}
 
-// };
+template <utl::any_enum auto V, any_bitstruct T>
+using field_value_t = typename std::remove_reference_t<decltype(std::remove_reference_t<T>::template find_field_by_enum_tag<V>())>::found_t::value_t;
 
-template <utl::integer::convertible_to_unsigned T, utl::integer::convertible_to_unsigned U, size_t O>
-class bitspan {
-    private:
-        using word_t = T;
-        using underlying_t = U;
-        static constexpr size_t bitfield_width = utl::integer::width<underlying_t>();
-        static constexpr word_t bitfield_mask = (1 << bitfield_width) - 1;
+namespace test {
+    enum class fields_a: uint8_t {
+        FIELD_A,
+        FIELD_B,
+        FIELD_C,
+        FIELD_D
+    };
 
-        word_t& m_word;
-    public:
-        constexpr bitspan(word_t& w) : m_word{w} {}
+    using test_struct_t = bitstruct<
+        bitfield<fields_a::FIELD_A, uintn_t<3>>,
+        bitfield<fields_a::FIELD_B, uintn_t<2>>,
+        bitfield<fields_a::FIELD_C, uintn_t<5>>,
+        bitfield<fields_a::FIELD_D, uintn_t<13>>
+    >;
 
-        constexpr size_t offset()
-        {
-            return O;
-        }
+    constexpr auto test_struct = test_struct_t{};
 
-        constexpr size_t width()
-        {
-            return utl::integer::width<U>();
-        }
+    static_assert(get_field<fields_a::FIELD_A>(test_struct).offset() == 0);
+    static_assert(get_field<fields_a::FIELD_A>(test_struct).width() == 3);
+    static_assert(get_field<fields_a::FIELD_B>(test_struct).offset() == 3);
+    static_assert(get_field<fields_a::FIELD_B>(test_struct).width() == 2);
+    static_assert(get_field<fields_a::FIELD_C>(test_struct).offset() == 5);
+    static_assert(get_field<fields_a::FIELD_C>(test_struct).width() == 5);
+    static_assert(get_field<fields_a::FIELD_D>(test_struct).offset() == 10);
+    static_assert(get_field<fields_a::FIELD_D>(test_struct).width() == 13);
 
-        constexpr underlying_t value()
-        {
-            auto v = utl::integer::unsigned_cast(m_word);
-            return {(v >> O) && bitfield_mask};
-        }
-        //explicitly convertible to the underlying type
-        explicit constexpr operator underlying_t() const
-        {
-            return value();
-        }
+    static_assert(std::same_as< 
+        bitfield_view<fields_a::FIELD_C, const uintn_t<23>, uintn_t<5>, 5>, 
+        std::decay_t<decltype(get_field<fields_a::FIELD_C>(test_struct))>
+    >);
+} //namespace test
 
-        //explicitly convertible to a bitfield with the same underlying type
-        explicit constexpr operator bitfield<U>() const
-        {
-            return {static_cast<underlying_t>(*this)};
-        }
-
-        //assignable from the bitfield or underlying type
-        constexpr auto& operator=(underlying_t value)
-        {
-            return operator=(bitfield<U>{value});
-        }
-
-        constexpr auto& operator=(bitfield<U> value)
-        {
-            const word_t set_mask = word_t{utl::integer::unsigned_cast(value)} << O;
-            const word_t clear_mask = (~set_mask) & bitfield_mask;
-            m_word = (m_word | set_mask) & ~clear_mask; 
-            return *this;
-        }
-};
-
-static_assert(any_bitfield<bitspan<uint32_t,uint8_t,0>>);
+// template <any_bitstruct T>
+// constexpr size_t width()
+// {
+//     return T::width();
+// }
 
 
-template <typename... Ts>
-struct packed {
-    static constexpr size_t width = (utl::integer::width<Ts>() + ...);
-    using value_t = uintn_t<width>;
-    value_t value;
-};
 
 
 // struct my_bitstruct : packed<uintn_t<3>,uintn_t<6>> {
@@ -134,6 +198,7 @@ struct packed {
 //     bitspan<my_bitstruct,0> CONF{*this, 1_u3};
 //     bitspan<my_bitstruct,3> FLOOB{*this, 7_u6};
 // };
+
 
 // template <typename T, size_t O>
 // constexpr auto make_bitspan(utl::integer::convertible_to_unsigned auto& v)
@@ -159,22 +224,22 @@ struct packed {
 
 
 // template <typename T>
-// constexpr auto apply_offset(bitfield<T> bf, size_t offset)
+// constexpr auto apply_offset(bitset<T> bf, size_t offset)
 // {
 //     return utl::integer::unsigned_cast(bf) << offset;
 // }
 
 // template <size_t N, typename T>
-// constexpr auto apply_offset(bitfield<T> bf)
+// constexpr auto apply_offset(bitset<T> bf)
 // {
 //     return utl::integer::unsigned_cast(bf) << N;
 // }
 
-template <any_enumerated_bitfield T>
-using options_t = bitfield_value_t<T>;
+// template <any_enumerated_bitset T>
+// using options_t = bitset_value_t<T>;
 
 
 // template <size_t W>
-// struct bitfield : public bitfield<uintn_t<W>> {};
+// struct bitset : public bitset<uintn_t<W>> {};
 
 } //namespace utl

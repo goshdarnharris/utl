@@ -38,4 +38,7 @@ concept callable = requires(F&& f, Args&&... args) {
     { f(args...) } -> same_as<R>;
 };
 
+template <typename T>
+concept any_enum = std::is_enum_v<T>;
+
 } //namespace utl

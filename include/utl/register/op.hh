@@ -11,7 +11,7 @@
 #include <utility>
 #include <utl/register/register.hh>
 #include <utl/register/field.hh>
-#include <utl/hof.hh>
+#include <utl/hof/fold.hh>
 
 
 

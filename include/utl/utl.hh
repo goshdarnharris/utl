@@ -27,11 +27,11 @@
 
 namespace std {
 
-[[noreturn]]
-inline void terminate(void)
-{
-    while (true);
-}
+// [[noreturn]]
+// inline void terminate(void)
+// {
+//     while (true);
+// }
 
 } // namespace std
 
