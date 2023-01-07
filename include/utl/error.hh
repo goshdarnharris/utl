@@ -15,41 +15,139 @@
 
 namespace utl {
 
-class error_code;
-
-template <typename T>
-constexpr error_code make_error_code(T code);
-
-template <typename T>
-struct is_error_code_enum : std::false_type {};
-
-// using namespace utl::literals;
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnon-virtual-dtor"
-
-struct error_category {
-    constexpr error_category() = default;    
-    [[nodiscard]] virtual string_view message(int32_t value) const;
-    [[nodiscard]] virtual string_view name() const;
-    ~error_category() = default;
+enum class errc : int32_t {
+    success,
+    out_of_bounds,
+    unknown
 };
 
-#pragma clang diagnostic pop
+class error_code;
 
-class error_code {
-    int32_t value; 
-    error_category const * category;
+namespace error {
+
+    template <typename T>
+    constexpr bool is_error_code_enum() { return false; }
+
+    template <typename T>
+    concept any_error_enum = is_error_code_enum<T>();
+
+    template <any_error_enum T>
+    [[nodiscard]] constexpr string_view message(T value); //FIXME: default should get the enum value name
+
+    template <any_error_enum T>
+    [[nodiscard]] constexpr string_view name(); //FIXME: default should get the enum's type name
+
+
+    
+    template <>
+    constexpr bool is_error_code_enum<errc>() { return true; }
+
+    template <>
+    [[nodiscard]] constexpr string_view message<errc>(errc value)
+    {
+        switch(value) {
+            case errc::success:
+                return "success"_sv;
+            case errc::out_of_bounds:
+                return "index out of bounds"_sv;
+            case errc::unknown:
+            default:
+                return "unknown generic error"_sv;
+        }
+    }
+
+    template <>
+    [[nodiscard]] constexpr string_view name<errc>()
+    {
+        return "errc"_sv;
+    }
+} //namespace error
+
+struct error_condition;
+
+struct error_domain {
+    constexpr error_domain() = default;    
+    [[nodiscard]] virtual constexpr string_view message(int32_t value) const = 0;
+    [[nodiscard]] virtual constexpr string_view name() const = 0;
+    // [[nodiscard]] virtual constexpr error_condition default_error_condition(int32_t code) const
+    // {
+    //     return error_condition{code,*this};
+    // }
+    // [[nodiscard]] constexpr bool equivalent(int32_t code, const error_condition& condition) const
+    // {
+    //     return default_error_condition(code) == condition;
+    // }
+    // [[nodiscard]] constexpr bool equivalent(const error_code& code, int32_t condition) const
+    // {
+    //     return *this == code.domain() && code.value() == condition;
+    // }
+    // [[nodiscard]] constexpr bool operator==(error_domain const& rhs) const
+    // {
+    //     return &rhs == this;
+    // }
+    // [[nodiscard]] constexpr std::strong_ordering operator<=>(error_domain const& rhs) const
+    // {
+    //     return this <=> &rhs;
+    // }
+    virtual constexpr ~error_domain() = default;
+};
+
+template <error::any_error_enum T>
+struct error_domain_t : public error_domain {    
+    [[nodiscard]] constexpr string_view message(int32_t value) const final { return error::message<T>(static_cast<T>(value)); }
+    [[nodiscard]] constexpr string_view name() const final { return error::name<T>(); }
+};
+
+template <error::any_error_enum T>
+/*constexpr FIXME: needs clang >= 15*/ error_domain const& get_error_domain()
+{
+    static /*constexpr FIXME: needs clang >= 15*/ error_domain_t<T> domain{};
+    return domain;
+}
+
+class [[nodiscard]] error_code {
+    int32_t value_;
+    error_domain const * domain_;
 public:
+    // constructors
+    constexpr error_code() : error_code{0,get_error_domain<errc>()} {}
+    constexpr error_code(int val, error_domain const& dom) : value_{val}, domain_{&dom} {}
+    constexpr error_code(error::any_error_enum auto e) : value_{static_cast<int32_t>(e)}, 
+        domain_{&get_error_domain<std::decay_t<decltype(e)>>()} {}
 
-    constexpr error_code(int32_t val, const error_category* cat) 
-     : value{val}, category{cat} {}
+    // modifiers
+    void assign(int value, error_domain const& dom)
+    {
+        *this = error_code{value,dom};
+    }
+    
+    error_code& operator=(error::any_error_enum auto value)
+    {
+        *this = error_code(value);
+    }
 
-    template <typename T, typename std::enable_if<is_error_code_enum<T>::value, int*>::type = nullptr>
-    constexpr error_code(T code) : error_code{make_error_code(code)} {} //NOLINT(cppcoreguidelines-pro-type-member-init)
+    void clear()
+    {
+        *this = error_code{0, get_error_domain<errc>()};
+    }
 
-    [[nodiscard]] string_view message() const { return category->message(value); }
-    [[nodiscard]] string_view category_name() const { return category->name(); }
+    // observers
+    [[nodiscard]] constexpr auto value() const
+    {
+        return value_;
+    }
+    [[nodiscard]] constexpr error_domain const& domain() const
+    {
+        return *domain_;
+    }
+    [[nodiscard]] constexpr string_view message() const
+    {
+        return domain().message(value());
+    }
+    [[nodiscard]] explicit constexpr operator bool() const
+    {
+        return not (value() == 0);
+    }
 };
 
 } //namespace utl

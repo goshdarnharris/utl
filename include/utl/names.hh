@@ -13,8 +13,7 @@
 
 namespace utl {
 
-namespace detail {
-namespace types {
+namespace detail::types {
 
 struct probe_type {};
 inline constexpr string_view probe_name = "utl::detail::types::probe_type"_sv;
@@ -39,8 +38,7 @@ constexpr string_view get_type_name()
     return full_name.substr(param_name_start_pos, param_name_size);
 }
 
-} //namespace types
-} //namespace detail
+} //namespace detail::types
 
 using detail::types::get_type_name;
 
@@ -61,8 +59,7 @@ constexpr string_view get_type_name(const T&& v)
     return type_name<T>;
 }
 
-namespace detail {
-namespace enums {
+namespace detail::enums {
 
 template <auto V> 
 struct enum_v {
@@ -94,8 +91,7 @@ constexpr string_view get_enum_name()
     return enum_v_name.substr(value_name_start_pos, name_size);
 }
 
-} //namespace enums
-} //namespace detail
+} //namespace detail::enums
 
 using detail::enums::get_enum_name;
 

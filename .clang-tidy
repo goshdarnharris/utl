@@ -21,6 +21,7 @@ Checks: >-
     -readability-else-after-return,
     -readability-uppercase-literal-suffix,
     -readability-magic-numbers,
+    -readability-identifier-length,
 
     hicpp-avoid-goto,
     hicpp-exception-baseclass,
@@ -46,6 +47,7 @@ WarningsAsErrors: >-
     -*,
     clang-diagnostic-*,
     -clang-diagnostic-deprecated-declarations,
+    -clang-diagnostic-unused-command-line-argument,
     clang-analyzer-*,
     boost-*,
     bugprone-*,

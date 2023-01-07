@@ -15,7 +15,6 @@
 #include <utl/irq/unsafe.hh>
 #include <utl/irq/safe.hh>
 #include <utl/array.hh>
-#include <utl/register.hh>
 
 #include <utl/utility.hh>
 

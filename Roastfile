@@ -50,7 +50,6 @@ def add_sanitizers(builder):
 def add_lto(builder):
     builder.append_cflag("-flto")
     builder.append_lflag("-flto")
-    builder.append_cflag("-S")
     builder.append_lflag("-x ir")
     builder.append_lflag("-Wl,-plugin-opt=save-temps")
 
@@ -137,7 +136,7 @@ def configure(context):
 
 
     context.builder.append_cflag("-isystem packages/cpputest/include")
-    context.builder.append_include("packages/duck_invoke/include")
+    context.builder.append_sys_include("packages/duck_invoke/include")
     context.builder.append_include("include")
     context.builder.append_include("test-platform")
     context.builder.append_include(".")
@@ -151,20 +150,21 @@ def configure(context):
 
     setattr(context, "analyzer", None)
     context.analyzer = source.builder.clang_tidy.Analyzer(capture=False)
+    context.analyzer.append_check("-cppcoreguidelines-macro-usage")
 
 @Frontend.rule(["build/{ARCH}/{MODE}/*.o"],["build/{ARCH}/{MODE}/unittest"])
 def link(context,inputs,outputs):
     context.builder.link_executable(inputs[0],outputs[0])
 @Frontend.rule(["%.{cc,cpp}"],["build/{ARCH}/{MODE}/{0}.o","build/{ARCH}/{MODE}/{0}.d"])
 def compile_analyze_source(context,inputs,outputs):
-    def do_it():
+    def build_it():
         context.builder.compile_source(inputs[0],outputs[0])
         context.builder.perform_search(context,transform,outputs[1])
     if "packages/cpputest" in str(inputs[0]):
         with context.builder.push_cflags("-Wno-everything"):
-            do_it()
+            build_it()
     else: 
-        do_it()
+        build_it()
 
         if "src/" in str(inputs[0]):
             context.analyzer.analyze_source(inputs[0])
@@ -181,6 +181,6 @@ def compile_analyze_source(context,inputs,outputs):
                 ]
 
             with context.analyzer.push_checks(*checks):
-                # context.analyzer.analyze_source(inputs[0])
-                pass
+                context.analyzer.analyze_source(inputs[0])
+                # pass
 

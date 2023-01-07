@@ -72,11 +72,11 @@ namespace detail {
         using arg_view_t = utl::span<varg const* const>;
         struct next_arg_tag{};
 
-        const arg_view_t view;
-        size_t next_arg;
+        const arg_view_t view{nullptr,0};
+        size_t next_arg{0};
 
         template <typename... Ts>
-        arglist(arg_storage<Ts...> const& s) : view{s.vargs.data(),s.vargs.size()}, next_arg{0} {}
+        arglist(arg_storage<Ts...> const& s) : view{s.vargs.data(),s.vargs.size()} {}
 
         varg const& consume_next() { return *view[next_arg++]; }
         [[nodiscard]] varg const& get(size_t idx) const { return *view[idx]; }

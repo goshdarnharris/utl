@@ -12,7 +12,7 @@
 #include "packages/libawful/include/awful.hpp"
 #include "utl/test-types.hh"
 #include "utl/utl.hh"
-#include "utl/system-error.hh"
+#include "utl/error.hh"
 
 TEST_GROUP(Variant) {};
 

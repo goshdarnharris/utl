@@ -69,7 +69,7 @@ struct imprecise {
 };
 
 template <typename T>
-imprecise(T a, T b) -> imprecise<T>;
+imprecise(T a, T b) -> imprecise<T>; //NOLINT(readability-identifier-length)
 
 }
 

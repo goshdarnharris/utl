@@ -17,7 +17,7 @@
 
 TEST_GROUP(tuple) {};
 
-namespace {
+namespace test {
 
 inline constexpr auto tup = utl::tuple{1.0f,10u,false};
 
@@ -29,8 +29,8 @@ inline constexpr auto tied = utl::tie(some_float,some_int,some_bool);
 static_assert(std::is_same_v<decltype(tied), const utl::tuple<const float&, const unsigned int&, const bool&>>);
 
 
-static auto forwarded = utl::forward_as_tuple(some_float,some_int,true);
-static_assert(std::is_same_v<decltype(forwarded), utl::tuple<const float&, const unsigned int&, bool&&>>);
+static const auto forwarded = utl::forward_as_tuple(some_float,some_int,true);
+static_assert(std::is_same_v<decltype(forwarded), const utl::tuple<const float&, const unsigned int&, bool&&>>);
 
 } //anonymous namespace
 
@@ -117,7 +117,7 @@ TEST(tuple,references)
     CHECK(utl::get<2>(foo) == c);
 }
 
-namespace {
+namespace test {
 
 struct wrapper {
     int a;
@@ -142,7 +142,7 @@ TEST(tuple,apply)
 
     tuple_t foo{a,b,c};
 
-    auto result = utl::apply(wrap_args, foo);
+    auto result = utl::apply(test::wrap_args, foo);
     CHECK_EQUAL(a, result.a);
     CHECK_EQUAL(b, result.b);
     CHECK_EQUAL(c, result.c);

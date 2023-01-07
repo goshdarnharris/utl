@@ -128,16 +128,16 @@ namespace utl::unit {
 
 struct permissive_overflow_policy {
     template <typename Value, typename Magnitude>
-    static constexpr bool check(Value v, Magnitude from, Magnitude to) {
-        maybe_unused(v,from,to);
+    static constexpr bool check(Value val, Magnitude from, Magnitude to) {
+        maybe_unused(val,from,to);
         return true;
     }
 };
 
 struct restrictive_overflow_policy {
     template <typename Value, typename Magnitude>
-    static constexpr bool check(Value v, Magnitude from, Magnitude to) {
-        maybe_unused(v,from,to);
+    static constexpr bool check(Value val, Magnitude from, Magnitude to) {
+        maybe_unused(val,from,to);
         //FIXME: actually check whether or not we'll overflow.
         return true;
     }
@@ -145,16 +145,16 @@ struct restrictive_overflow_policy {
 
 struct permissive_truncate_policy {
     template <typename Value, typename Magnitude>
-    static constexpr bool check(Value v, Magnitude from, Magnitude to) {
-        maybe_unused(v,from,to);
+    static constexpr bool check(Value val, Magnitude from, Magnitude to) {
+        maybe_unused(val,from,to);
         return true;
     }
 };
 
 struct restrictive_truncate_policy {
     template <typename Value, typename Magnitude>
-    static constexpr bool check(Value v, Magnitude from, Magnitude to) {
-        maybe_unused(v,from,to);
+    static constexpr bool check(Value val, Magnitude from, Magnitude to) {
+        maybe_unused(val,from,to);
         //FIXME: actually check whether or not we'll overflow.
         return true;
     }

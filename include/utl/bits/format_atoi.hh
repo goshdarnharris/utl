@@ -4,19 +4,19 @@
 
 namespace utl::fmt {
 
-constexpr bool is_separator(char ch)
+constexpr bool is_separator(char character)
 {
-    return ch == '\'';
+    return character == '\'';
 }
 
-constexpr bool is_digit(char ch)
+constexpr bool is_digit(char character)
 {
-    return (ch >= '0') and (ch <= '9');
+    return (character >= '0') and (character <= '9');
 }
 
-constexpr unsigned int digit_to_int(char c)
+constexpr unsigned int digit_to_int(char character)
 {
-    return static_cast<unsigned int>(c - '0');
+    return static_cast<unsigned int>(character - '0');
 }
 
 // internal ASCII string to unsigned integer conversion
@@ -24,11 +24,11 @@ template <typename T>
 constexpr auto ascii_to_integer(utl::string_view ascii)
 {
     T accumulator = 0u;
-    for(char c : ascii) {
-        if(is_separator(c)) continue;
-        if(not is_digit(c)) break;
+    for(char character : ascii) {
+        if(is_separator(character)) continue;
+        if(not is_digit(character)) break;
         accumulator *= 10; //NOLINT(cppcoreguidelines-avoid-magic-numbers)
-        accumulator += digit_to_int(c);
+        accumulator += digit_to_int(character);
     }
 
     return accumulator;

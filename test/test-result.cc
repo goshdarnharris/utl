@@ -8,12 +8,12 @@
 /* vim: set tabstop=4 shiftwidth=4 expandtab filetype=cpp : */
 
 #include "utl/result.hh"
-#include "utl/system-error.hh"
+#include "utl/error.hh"
 #include <CppUTest/TestHarness.h>
 #include "packages/libawful/include/awful.hpp"
 
 constexpr utl::result<uint32_t> foo(bool fail, uint32_t val) {
-    if(fail) return utl::system_error::UNKNOWN;
+    if(fail) return utl::errc::unknown;
     return val;
 }
 
@@ -23,12 +23,12 @@ struct Foo {
     Foo(uint32_t val) : a{val} {}
 
     utl::result<uint32_t&> get_a(bool fail) {
-        if(fail) return utl::system_error::UNKNOWN;
+        if(fail) return utl::errc::unknown;
         return a;
     }
 
     utl::result<uint32_t> move_a(bool fail) {
-        if(fail) return utl::system_error::UNKNOWN;
+        if(fail) return utl::errc::unknown;
         return std::move(a); //NOLINT(performance-move-const-arg)
     }
 };
@@ -112,10 +112,10 @@ TEST(Result,ValueReturn)
 
 TEST(Result,ErrorReturn)
 {
-    utl::result<uint32_t> res{utl::system_error::UNKNOWN};
+    utl::result<uint32_t> res{utl::errc::unknown};
     CHECK(!static_cast<bool>(res));
     CHECK(!res.has_value());
-    // CHECK(res.error() == utl::system_error::UNKNOWN);
+    // CHECK(res.error() == utl::errc::unknown);
 }
 
 TEST(Result,ConstexprResult)
@@ -216,7 +216,7 @@ TEST(Result,VoidValueWithTag)
 
 TEST(Result,VoidValueWithError)
 {
-    utl::result<void> res{utl::system_error::UNKNOWN};
+    utl::result<void> res{utl::errc::unknown};
     CHECK(!res.has_value());
 }
 
@@ -235,7 +235,7 @@ TEST(Result,InPlaceValueNoncopyable)
 
 TEST(Result,InPlaceError)
 {
-    utl::result<Foo> res{std::in_place, utl::error_tag, utl::system_error::UNKNOWN};
+    utl::result<Foo> res{std::in_place, utl::error_tag, utl::errc::unknown};
     CHECK(!res.has_value());
 }
 

@@ -13,8 +13,8 @@ enum class bases : uint8_t {
     HEXADECIMAL = 16
 };
 
-constexpr bool is_uppercase(char c) {
-    return (c >= 'A' && c <= 'Z');
+constexpr bool is_uppercase(char character) {
+    return (character >= 'A' && character <= 'Z');
 }
 
 // internal itoa format, formerly _ntoa_format
@@ -80,9 +80,9 @@ constexpr void reverse_integer_decorate(output& out, utl::span<char> working, si
     align_pad_out(out, {working.data(), working_pos}, options.fill, options.align, options.width, working_pos, true);
 }
 
-inline constexpr bases get_int_spec_base(char c)
+inline constexpr bases get_int_spec_base(char character)
 {
-    switch(c) {
+    switch(character) {
         case 'B':
             [[fallthrough]];
         case 'b':

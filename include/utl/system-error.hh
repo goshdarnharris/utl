@@ -12,7 +12,7 @@
 
 namespace utl {
     
-enum class system_error {
+enum class system_error : int32_t {
     OK,
     UNKNOWN
 };
@@ -22,10 +22,7 @@ enum class system_error {
 using namespace utl::literals;
 
 template <>
-struct is_error_code_enum<system_error> : std::true_type {};
-
-//these should all be overloads
-error_code make_error_code(system_error code);
+constexpr bool is_error_enum<system_error>() { return true; }
 
 } //namespace utl
 

@@ -28,6 +28,8 @@ public:
     const size_t len;
     
     constexpr string_view(const char* s) : str{s}, len{__builtin_strlen(s)} {}
+    // template <size_t N>
+    // constexpr string_view(const char (&s)[N]) : str{s}, len{N} {} //NOLINT(cppcoreguidelines-avoid-c-arrays)
     constexpr string_view(const char* s, size_t l) : str{s}, len{s == nullptr ? 0 : l} {}
     constexpr string_view(decays_to<char*> auto begin_, decays_to<char*> auto end_) 
       : str{begin_}, len{static_cast<size_t>(end_-begin_)} 

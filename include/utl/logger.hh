@@ -11,7 +11,7 @@
 #include <utl/string-view.hh>
 #include <utl/type-list.hh>
 #include <utl/construct.hh>
-#include <utl/system-error.hh>
+#include <utl/error.hh>
 #include <utl/format.hh>
 #include <stdio.h>
 #include <string.h>
@@ -56,7 +56,7 @@ struct output : detail::output_base {
 
     result<void> write(utl::string_view const& s) const final {
         if(writer != nullptr) return writer->write(s);
-        return system_error::UNKNOWN;
+        return errc::unknown;
     }
 };
 

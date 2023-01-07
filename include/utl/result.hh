@@ -648,7 +648,6 @@ public:
     }
 
     constexpr auto& value_or(value_t& dfault) & {
-        //fixme: if constant evaluated, do a constexpr check of has_value.
         if(!has_value()) return dfault;
 
         return value_observer_t::get(m_storage.m_value);
@@ -665,7 +664,6 @@ public:
     }
 
     constexpr auto& value_or(value_t& dfault) const& {
-        //fixme: if constant evaluated, do a constexpr check of has_value.
         if(!has_value()) return dfault;
 
         return value_observer_t::get(m_storage.m_value);

@@ -58,8 +58,8 @@ template <auto* F>
 // a hack, so it needs a better name and probably better error
 // handling.
 struct wrap_static_handler {
-    static constexpr auto* handler = F;
-    static constexpr auto irq = get_static_handler_irq(F);
+    static constexpr auto const * handler = F;
+    static constexpr auto const irq = get_static_handler_irq(F);
 };
 
 

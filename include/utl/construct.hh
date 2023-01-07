@@ -9,7 +9,7 @@
 #define UTL_CONSTRUCT_HH_
 
 #include "utl/result.hh"
-#include "utl/system-error.hh"
+#include "utl/error.hh"
 #include <experimental/type_traits>
 #include <stdio.h>
 
@@ -213,7 +213,7 @@ class construct : public result<T> {
     template <typename... Args>
     constexpr construct(error_tag_t, Args&&... args)
         // requires requires() { T{detail::get_value<Args>(std::forward<Args>(args))...}; }
-        : result<T>{std::in_place, error_tag, utl::system_error::UNKNOWN}
+        : result<T>{std::in_place, error_tag, errc::unknown}
     { 
         //FIXME: can probably refactor this as a collection of constexpr_if.
         //FIXME: can probably discover the arguments of the constructor and compare

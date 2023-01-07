@@ -10,11 +10,14 @@
 #include <stdint.h>
 #include <concepts>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wbit-int-extension"
+
 namespace utl::integer {
 
 template <size_t W>
 struct intn_impl {
-    using type = _ExtInt(W);
+    using type = _BitInt(W);
 };
 
 template <>
@@ -26,7 +29,7 @@ struct intn_impl<32> { using type = int32_t; };
 
 template <size_t W>
 struct uintn_impl {
-    using type = unsigned _ExtInt(W);
+    using type = unsigned _BitInt(W);
 };
 
 template <>
@@ -39,21 +42,23 @@ struct uintn_impl<32> { using type = uint32_t; };
 template <typename T>
 struct ExtInt_width_helper;
 template <size_t W>
-struct ExtInt_width_helper<_ExtInt(W)> { static constexpr auto width = W; };
+struct ExtInt_width_helper<_BitInt(W)> { static constexpr auto width = W; };
 template <size_t W>
-struct ExtInt_width_helper<const _ExtInt(W)> { static constexpr auto width = W; };
+struct ExtInt_width_helper<const _BitInt(W)> { static constexpr auto width = W; };
 template <size_t W>
-struct ExtInt_width_helper<volatile _ExtInt(W)> { static constexpr auto width = W; };
+struct ExtInt_width_helper<volatile _BitInt(W)> { static constexpr auto width = W; };
 template <size_t W>
-struct ExtInt_width_helper<const volatile _ExtInt(W)> { static constexpr auto width = W; };
+struct ExtInt_width_helper<const volatile _BitInt(W)> { static constexpr auto width = W; };
 template <size_t W>
-struct ExtInt_width_helper<unsigned _ExtInt(W)> { static constexpr auto width = W; };
+struct ExtInt_width_helper<unsigned _BitInt(W)> { static constexpr auto width = W; };
 template <size_t W>
-struct ExtInt_width_helper<const unsigned _ExtInt(W)> { static constexpr auto width = W; };
+struct ExtInt_width_helper<const unsigned _BitInt(W)> { static constexpr auto width = W; };
 template <size_t W>
-struct ExtInt_width_helper<volatile unsigned _ExtInt(W)> { static constexpr auto width = W; };
+struct ExtInt_width_helper<volatile unsigned _BitInt(W)> { static constexpr auto width = W; };
 template <size_t W>
-struct ExtInt_width_helper<const volatile unsigned _ExtInt(W)> { static constexpr auto width = W; };
+struct ExtInt_width_helper<const volatile unsigned _BitInt(W)> { static constexpr auto width = W; };
+
+#pragma clang diagnostic pop
 
 //TODO: ideally these would be a customization point object or
 //at least a first class overload set, but
@@ -73,11 +78,11 @@ constexpr size_t width()
 
 
 template <typename T>
-concept any_ExtInt = requires {
+concept any_BitInt = requires {
     ExtInt_width_helper<T>::width;
 };
 
-template <any_ExtInt T>
+template <any_BitInt T>
 constexpr size_t width() { return ExtInt_width_helper<T>::width; }
 
 } //namespace utl::integer
@@ -106,7 +111,7 @@ static_assert(intn_max<16> == 32767);
 
 template <typename T>
 concept integral = std::integral<T> or 
-    integer::any_ExtInt<T>;
+    integer::any_BitInt<T>;
 
 static_assert(integral<int>);
 static_assert(integral<const int>);
@@ -167,39 +172,39 @@ using unsigned_cast_t = decltype(unsigned_cast(declval<T>()));
 
 namespace utl::literals {
 
-namespace detail {
-    template <char... Cs>
-    consteval auto chars_to_sv()
-    {
-        constexpr char str[sizeof...(Cs)] = {Cs...};
-        return utl::string_view{str,sizeof...(Cs)};
-    }
+// namespace detail {
+//     template <char... Cs>
+//     consteval auto chars_to_sv()
+//     {
+//         constexpr char str[sizeof...(Cs)] = {Cs...};
+//         return utl::string_view{str,sizeof...(Cs)};
+//     }
 
-    template <size_t W, char... Cs>
-    consteval auto make_unsigned()
-    {
-        constexpr auto input = chars_to_sv<Cs...>();
-        static_assert(not input.starts_with('-'), "negative sign in utl unsigned integer literal");
-        constexpr auto value = utl::fmt::ascii_to_ulonglong(input);
-        static_assert(value <= utl::uintn_max<W>, "overflow in utl unsigned integer literal");
-        return utl::uintn_t<W>{value};
-    }
+//     template <size_t W, char... Cs>
+//     consteval auto make_unsigned()
+//     {
+//         constexpr auto input = chars_to_sv<Cs...>();
+//         static_assert(not input.starts_with('-'), "negative sign in utl unsigned integer literal");
+//         constexpr auto value = utl::fmt::ascii_to_ulonglong(input);
+//         static_assert(value <= utl::uintn_max<W>, "overflow in utl unsigned integer literal");
+//         return utl::uintn_t<W>{value};
+//     }
 
     
-    template <size_t W, char... Cs>
-    consteval auto make_signed()
-    {
-        constexpr auto get_longlong = [](string_view v){
-            return static_cast<long long int>(utl::fmt::ascii_to_ulonglong(v));
-        };
+//     template <size_t W, char... Cs>
+//     consteval auto make_signed()
+//     {
+//         constexpr auto get_longlong = [](string_view v){
+//             return static_cast<long long int>(utl::fmt::ascii_to_ulonglong(v));
+//         };
 
-        constexpr auto input = chars_to_sv<Cs...>();
-        constexpr auto value = input.starts_with('-') ? -get_longlong(input.substr(1,utl::npos)) : get_longlong(input);
-        static_assert(value <= utl::intn_max<W>, "overflow in utl signed integer literal");
-        static_assert(value >= utl::intn_min<W>, "underflow in utl signed integer literal");
-        return utl::intn_t<W>{value};
-    }
-}
+//         constexpr auto input = chars_to_sv<Cs...>();
+//         constexpr auto value = input.starts_with('-') ? -get_longlong(input.substr(1,utl::npos)) : get_longlong(input);
+//         static_assert(value <= utl::intn_max<W>, "overflow in utl signed integer literal");
+//         static_assert(value >= utl::intn_min<W>, "underflow in utl signed integer literal");
+//         return utl::intn_t<W>{value};
+//     }
+// }
 
 // template <char... Cs> 
 // consteval auto operator""_u1() { return detail::make_unsigned<1,Cs...>(); }

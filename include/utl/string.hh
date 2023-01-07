@@ -164,19 +164,19 @@ public:
         if(v.size() > size()) { return false; }
         if(size() == 0 && v.size() == 0) { return true; }
         if(size() == 0) { return false; }
-        if (std::is_constant_evaluated()) {
-            if(access(0) == v[0]) {
-                if(v.size() == 1) { return true; }
-                return substr(1,npos).starts_with(v.substr(1, npos));
-            } else {
-                return false;
-            }
-        } else {
+        // if (std::is_constant_evaluated()) {
+        //     if(access(0) == v[0]) {
+        //         if(v.size() == 1) { return true; }
+        //         return substr(1,npos).starts_with(v.substr(1, npos));
+        //     } else {
+        //         return false;
+        //     }
+        // } else {
             for(size_t idx = 0; idx < v.size(); idx++) {
                 if(access(idx) != v[idx]) return false;
             }
             return true;
-        }
+        // }
     }
 
     [[nodiscard]] constexpr size_t find(string_view v, size_t pos = 0) const
@@ -191,15 +191,15 @@ public:
             return substr(p,npos).starts_with(v);
         };
 
-        if (std::is_constant_evaluated()) {
-            if(check(pos)) { return pos; }
-            return find(v, pos + 1);
-        } else {
+        // if (std::is_constant_evaluated()) {
+        //     if(check(pos)) { return pos; }
+        //     return find(v, pos + 1);
+        // } else {
             for(size_t idx = pos; idx <= search_end_pos; idx++) {
                 if(check(idx)) { return idx; }
             }
             return npos;
-        }
+        // }
     }
 
     [[nodiscard]] constexpr size_t rfind(string_view v, size_t pos = npos) const

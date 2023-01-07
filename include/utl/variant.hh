@@ -15,8 +15,8 @@ namespace utl {
 
 template <typename... Ts>
 class variant {
-    std::aligned_union_t<1,Ts...> m_storage;
-    size_t m_index;
+    std::aligned_union_t<1,Ts...> m_storage; //NOLINT(modernize-use-default-member-init) default constructor is deleted
+    size_t m_index; //NOLINT(modernize-use-default-member-init) default constructor is deleted
 
     template <bool Const, size_t N, typename F>
     void _accept(F&& visitor) const {
@@ -39,10 +39,11 @@ class variant {
     }
 
 public:
+    constexpr variant() = delete;
 
     template <typename T>
     requires utl::contains_v<T,Ts...> //NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
-    variant(T&& value) : m_storage{}, m_index{utl::get_type_index_v<T,Ts...>} {
+    constexpr variant(T&& value) : m_storage{}, m_index{utl::get_type_index_v<T,Ts...>} {
         new (&m_storage) T{std::forward<T>(value)};
     }
 

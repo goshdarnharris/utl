@@ -11,7 +11,7 @@
 #include <utl/test-types.hh>
 #include <utl/utl.hh>
 #include <utl/names.hh>
-#include <utl/system-error.hh>
+#include <utl/error.hh>
 #include <utl/tuple.hh>
 #include <utl/logger.hh>
 #include <type_traits>
@@ -267,29 +267,33 @@ TEST_GROUP(IRQ) {};
 
 namespace {
 struct some_irq{};
+
+struct my_type {
+    float value;
+};
 } //anonymous namespace
 
-static void my_handler(auto, bool& flag, uint32_t& value)
+static void my_handler(auto, bool& flag, my_type& value)
 {
     flag = true;
-    value = 0x55555555;
+    value.value = 1.234f;
 }
 
-static void my_handler(auto, bool& flag, uint32_t const&)
+static void my_handler(auto, bool& flag, my_type const&)
 {
     flag = true;
 }
 
-static void my_handler(auto, bool& flag, uint32_t value)
+static void my_handler(auto, bool& flag, my_type value)
 {
     flag = true;
-    value = 0x55555555;
+    value.value = 1.234f;
     utl::maybe_unused(value);
 }
 
 TEST(IRQ,bind) {
     bool flag = false;
-    uint32_t value = 0;
+    my_type value{0.0f};
 
     //this call does a few things:
     // - generates a void(void) function that is suitable as a vector
@@ -328,7 +332,7 @@ TEST(IRQ,bind) {
     // vector();
 
     CHECK_EQUAL(true,flag);
-    CHECK_EQUAL(0x55555555,value);
+    CHECK_EQUAL(1.234f,value.value);
 }
 
 // TEST(IRQ, Invocation)

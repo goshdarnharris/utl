@@ -1369,7 +1369,7 @@ TEST(Format, FormatIntLocale) {
 //   CHECK_EQUAL(utl::string_view{buffer}, utl::format<10>("{:a}", 3.31l));
 // }
 
-TEST(Format, FormatChar) {
+TEST(Format, FormatChar) { //NOLINT(readability-function-cognitive-complexity)
   // const char types[] = "cbBdoxXL";
   const utl::string types{"bBdoxXL"};
   // check_unknown_types('a', types, "char");
@@ -1436,7 +1436,7 @@ TEST(Format, FormatPointer) {
   CHECK_EQUAL("0x1234"_sv, utl::format<10>("{0}", reinterpret_cast<void*>(0x1234)));
   CHECK_EQUAL("0x1234"_sv, utl::format<10>("{0:p}", reinterpret_cast<void*>(0x1234)));
   CHECK_EQUAL(utl::format<50>("0x{}", utl::string<50>(sizeof(void*) * CHAR_BIT / 4, 'f')),
-            utl::format<50>("{0}", reinterpret_cast<void*>(~uintptr_t())));
+            utl::format<50>("{0}", reinterpret_cast<void*>(~uintptr_t()))); //NOLINT(performance-*)
   // CHECK_EQUAL("0x1234"_sv, utl::format<10>("{}", utl::ptr(reinterpret_cast<int*>(0x1234))));
   // std::unique_ptr<int> up(new int(1));
   // CHECK_EQUAL(utl::format<10>("{}", utl::ptr(up.get())), utl::format<10>("{}", utl::ptr(up)));
