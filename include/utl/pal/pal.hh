@@ -7,28 +7,17 @@
 
 namespace utl::pal {
 
-// template <auto R, utl::any_bitfield... Ts>
-// struct sfr : public utl::bitstruct<Ts...> {};
-
 template <auto R, utl::any_bitfield... Ts>
-    requires std::convertible_to<decltype(R), typename bitstruct<Ts...>::value_t>
+struct sfr : public utl::bitstruct<Ts...> {};
+
+template <typename... Ts>
 struct mm_register : public bitstruct<Ts...> {
-    constexpr mm_register() : bitstruct<Ts...>{R} {}
-    // constexpr mm_register(mm_register volatile const& other) : bitstruct<Ts...>{other} {}
-    // constexpr mm_register(mm_register const& other) : bitstruct<Ts...>{other} {}
-    using bitstruct<Ts...>::bitstruct;
+    //why aren't these being considered as candidates???
+    constexpr mm_register(mm_register volatile const& other) : bitstruct<Ts...>{other} {}
+    constexpr mm_register(mm_register volatile& other) : bitstruct<Ts...>{other} {}
+    constexpr mm_register(mm_register const& other) : bitstruct<Ts...>{other} {}
+    constexpr mm_register(mm_register&&) = delete;
     using bitstruct<Ts...>::operator=;
-
-    static constexpr mm_register reset_value()
-    { 
-        return {R}; 
-    }
-};
-
-template <typename T>
-concept any_register = any_bitstruct<T> and requires(T v) {
-    { T::reset_value() } -> std::same_as<T>;
-    { v.reset_value() } -> std::same_as<T>;
 };
 
 template <typename T> //CRTP parameter
@@ -113,99 +102,36 @@ namespace op {
     using field_tag_t = typename std::decay_t<T>::field_tag_t;
 } //namespace op
 
+template <utl::any_enum auto V>
+constexpr auto assign(auto value)
+{
+    return op::assign<V,decltype(value)>{value};
+}
 
-namespace reg_ops {
-    template <utl::any_enum E>
-    constexpr auto load()
-    {
-        // using register_t = std::decay_t<decltype(get_register<E>(p))>;
-        // return register_t{get_register<E>(p)}; //force a copy to a regular value type
-    }
+template <utl::any_enum E>
+constexpr auto read(any_peripheral auto& p)
+{
+    using register_t = std::decay_t<decltype(get_register<E>(p))>;
+    return register_t{get_register<E>(p)}; //force a copy to a regular value type
+}
 
-    template <utl::any_enum E, typename T, typename... Ts>
-    constexpr auto store(T&&, Ts&&...)
-    {
+template <utl::any_enum auto E>
+constexpr auto read(any_peripheral auto& p)
+{
+    return get_field<E>(p).value();
+}
 
-    }
-} //namespace reg_ops
-
-namespace reg {
-    template <utl::any_enum E>
-    constexpr auto load(any_peripheral auto& p)
-    {
-        using register_t = std::decay_t<decltype(get_register<E>(p))>;
-        return register_t{get_register<E>(p).value}; //force a read into a non-volatile copy
-    }
-
-    template <utl::any_enum E>
-    constexpr auto reset_value(any_peripheral auto& p)
-    {
-        return get_register<E>(p).reset_value();
-    }
-
-    template <any_peripheral P, typename T, typename... Ts>
-    constexpr auto write(P& p, T&& head, Ts&&... ops)
-        requires (std::common_with<op::field_tag_t<T>,op::field_tag_t<Ts>> and ...)
-    {
-        auto init = reset_value<op::field_tag_t<T>>(p); //read to get starting value
-        const auto value = hof::compose(
-            std::forward<decltype(head)>(head), 
-            std::forward<decltype(ops)>(ops)...
-        )(std::move(init)); //compose & call
-        get_register<op::field_tag_t<T>>(p) = value; //write the result to the register
-        return value; //return the new register value
-    }
-
-    //FIXME: I think this goes away.
-    template <any_peripheral P, typename T, typename... Ts>
-    constexpr auto modify(P& p, T&& head, Ts&&... ops)
-        requires (std::common_with<op::field_tag_t<T>,op::field_tag_t<Ts>> and ...)
-    {
-        auto init = load<op::field_tag_t<T>>(p); //read to get starting value
-        const auto value = hof::compose(
-            std::forward<decltype(head)>(head), 
-            std::forward<decltype(ops)>(ops)...
-        )(std::move(init)); //compose & call
-        get_register<op::field_tag_t<T>>(p) = value; //write the result to the register
-        return value; //return the new register value
-    }
-} //namespace register_ops
-
-namespace field_ops {
-    template <utl::any_enum auto V>
-    constexpr auto assign(auto value)
-    {
-        return op::assign<V,decltype(value)>{value};
-    }
-
-    template <utl::any_enum auto V>
-    constexpr auto reset()
-    {
-        constexpr auto value = reset_value<V>();
-        return op::assign<V,decltype(value)>{value};
-    }
-} //namespace field_ops
-
-namespace field {
-    template <utl::any_enum auto V>
-    constexpr auto load(any_peripheral auto& p)
-    {
-        return get_field<V>(p).value();
-    }    
-
-    template <utl::any_enum auto V>
-    constexpr auto reset_value(any_peripheral auto& p)
-    {
-        using register_tag_t = std::decay_t<decltype(V)>;
-        constexpr auto register_reset = get_register<register_tag_t>(p).reset_value();
-        return get_field<V>(register_reset).value();
-    }    
-} //namespace field_ops
-
-
-using namespace reg_ops;
-using namespace reg;
-using namespace field_ops;
-using namespace field;
+template <any_peripheral P, typename T, typename... Ts>
+constexpr auto write(P& p, T&& head, Ts&&... ops)
+    requires (std::common_with<op::field_tag_t<T>,op::field_tag_t<Ts>> and ...)
+{
+    auto init = read<op::field_tag_t<T>>(p); //read to get starting value
+    const auto value = hof::compose(
+        std::forward<decltype(head)>(head), 
+        std::forward<decltype(ops)>(ops)...
+    )(std::move(init)); //compose & call
+    get_register<op::field_tag_t<T>>(p) = value; //write the result to the register
+    return value; //return the new register value
+}
 
 } //namespace utl::pal
