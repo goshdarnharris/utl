@@ -12,14 +12,6 @@
 
 namespace utl {
 
-// namespace detail {
-//     template< class T, class U >
-//     concept SameHelper = std::is_same_v<T, U>;
-// }
- 
-// template< class T, class U >
-// concept same_as = detail::SameHelper<T, U> && detail::SameHelper<U, T>;
-
 template <typename T, typename U>
 concept same_as = is_same_v<T,U>;
 
@@ -41,4 +33,22 @@ concept callable = requires(F&& f, Args&&... args) {
 template <typename T>
 concept any_enum = std::is_enum_v<T>;
 
+
+template <typename T>
+concept complete_type = requires() {
+    sizeof(T);
+};
+
+template <typename T>
+concept incomplete_type = not complete_type<T>;
+
+//Concept to test a lambda-fied concept
+template <typename T, auto Pred>
+concept satisfies = requires(T v) {
+    Pred(v);
+};
+
 } //namespace utl
+
+//Macro to use a concept as a template parameter
+#define CONCEPT(a) [](a auto&&){}

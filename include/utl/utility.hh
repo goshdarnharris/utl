@@ -40,4 +40,26 @@ struct explicit_type_v {
 
 };
 
+template <template <typename...> class MFn, bool condition, typename T>
+using apply_if_t = std::conditional_t<condition, MFn<T>, T>;
+
+template <typename T>
+using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
+
+template <typename From, typename To>
+using copy_cv_t =
+    apply_if_t<std::add_volatile_t, std::is_volatile_v<From>,
+        apply_if_t<std::add_const_t, std::is_const_v<From>,
+            std::remove_cv_t<To>>>;
+
+template <typename From, typename To>
+using copy_ref_t =
+    apply_if_t<std::add_rvalue_reference_t, std::is_rvalue_reference_v<From>,
+        apply_if_t<std::add_lvalue_reference_t, std::is_lvalue_reference_v<From>,
+            std::remove_reference_t<To>>>;
+
+template <typename From, typename To>
+using copy_cvref_t = copy_ref_t<From,
+    copy_cv_t<std::remove_reference_t<From>, remove_cvref_t<To>>>;
+
 } //namespace utl

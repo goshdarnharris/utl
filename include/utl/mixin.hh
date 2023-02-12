@@ -8,574 +8,536 @@
 
 #pragma once
 
-#include <utl/string.hh>
-#include <utl/tuple.hh>
-#include <utl/constraint.hh>
-#include <utl/type-list.hh>
+#include <cstdio>
+#include <cstdint>
 #include <concepts>
+#include <utility>
+#include <type_traits>
 #include <utl/utility.hh>
+#include <utl/tuple.hh>
+#include <utl/string_view.hh>
 
 
-//To Do:
-// - interface components! (done)
-// - construction. probably this should provide a way to get
-//   concrete component types by index, which can then be used
-//   for relatively direct initialization.
-// - allow a component template to appear more than once in a 
-//   composition. (done)
-// - more algorithms? 
-//   - a version of at with a fallback, or at_t with a fallback
-// - algorithms for composing constraints
-//   - should constraints be lambdas instead of structs?
-//   - composition of constraints is probably simpler with structs because I can spell the type.
-//   - is a template parameter right place for them? what about as an arg?
-// - support for composing compositions
-// - properly constrain public API (currently uses auto*, so error messages will be bad)
-// - support a compound if syntax for has/as & related (if-with-assignment), if that requires
-//    anything special
-// - "data" mixins (no self_type base; unaware of other components but can be used by them)
+namespace utl::mix {
 
-namespace utl::mixin {
-
-struct interface_tag_t{};
-struct implementation_tag_t{};
-struct composed_tag_t{};
-
-template <typename T>
-concept any_interface_trait = requires() {
-    { typename T::tag_t{} } -> std::same_as<interface_tag_t>;
-};
-
-template <typename T>
-concept any_implementation_trait = requires() {
-    { typename T::tag_t{} } -> std::same_as<implementation_tag_t>;
-};
-
-template <typename T>
-concept any_composed_traits = requires() {
-    { typename T::tag_t{} } -> std::same_as<composed_tag_t>;
-};
-
-template <typename T>
-concept any_mixin_trait = any_interface_trait<T> 
-    or any_implementation_trait<T>
-    or any_composed_traits<T>;
-
-
-
-template <size_t I, any_mixin_trait... Ts>
-struct self_type;
-
-struct mixin_forwarding_tag_t{};
-inline constexpr mixin_forwarding_tag_t mixin_forwarding_tag{};
-
-template <size_t I, typename T>
-struct mixin : T {
-    constexpr mixin() = default;
-    constexpr mixin(mixin&) = default;
-    constexpr mixin(mixin&&) = default;
-    constexpr mixin& operator=(mixin const&) = default;
-    constexpr mixin& operator=(mixin&&) = default;
-    constexpr ~mixin() = default;
-
-    using concrete_mixin_t = T;
-
-    template <typename... Args>
-    constexpr mixin(mixin_forwarding_tag_t, tuple<Args...>&& forwarding_tuple) 
-        : mixin{mixin_forwarding_tag,
-            std::make_index_sequence<tuple_size_v<tuple<Args...>>>{}, 
-            std::forward<tuple<Args...>>(forwarding_tuple)}
-    {}
-
-    constexpr mixin(mixin_forwarding_tag_t, tuple<>) 
-        requires std::default_initializable<T>
-        : T{}
-    {}
-private:
-    // using T::T;
-
-    template <size_t... Is, typename... Args>
-        // requires std::constructible_from<T,Args...>
-    constexpr mixin(mixin_forwarding_tag_t, std::index_sequence<Is...>, tuple<Args...>&& args)
-        : T{std::forward<Args>(get<Is>(args))...}
-    {}
-
-    template <size_t... Is, typename... Args>
-        requires std::is_aggregate_v<T> //and requires() { T{{},std::declval<Args>()...}; }
-    constexpr mixin(mixin_forwarding_tag_t, std::index_sequence<Is...>, tuple<Args...>&& args)
-        : T{{}, std::forward<Args>(get<Is>(args))...}
-    {}
-};
-
-
-
-
-
-
-
-template <template <typename> typename T>
-struct interface {};
-
-template <size_t I, template <typename> typename T>
-struct interface_trait {
-    static constexpr size_t composed_index = I;
-
-    using tag_t = interface_tag_t;
-
-    template <typename U>
-    using mixin_t = T<U>;
-
-    template <any_mixin_trait...Ts>
-    using self_t = self_type<I,Ts...>;
-
-    template <any_mixin_trait... Ts>
-    using concrete_mixin_t = T<self_type<I,Ts...>>;
-
-    template <any_mixin_trait... Ts>
-    struct access_node_t : public mixin<I,concrete_mixin_t<Ts...>> {
-        using mixin<I,concrete_mixin_t<Ts...>>::mixin;
-    };
-};
-
-template <size_t I, template <typename> typename T>
-struct implementation_trait {
-    static constexpr size_t composed_index = I;
-
-    using tag_t = implementation_tag_t;
-
-    template <any_mixin_trait...Ts>
-    using self_t = self_type<I,Ts...>;
-
-    template <any_mixin_trait... Ts>
-    using concrete_mixin_t = T<self_t<Ts...>>;
-
-    template <any_mixin_trait... Ts>
-    struct access_node_t : protected mixin<I,concrete_mixin_t<Ts...>> {
-        using mixin<I,concrete_mixin_t<Ts...>>::mixin;
-    };
-};
-
-template <size_t I, typename T>
-struct data_trait {
-    static constexpr size_t composed_index = I;
-
-    using tag_t = interface_tag_t;
-
-    template <any_mixin_trait...Ts>
-    using self_t = self_type<I,Ts...>;
-
-    template <any_mixin_trait... Ts>
-    using concrete_mixin_t = T;
-
-    template <any_mixin_trait... Ts>
-    struct access_node_t : mixin<I,concrete_mixin_t<Ts...>>,self_type<I,Ts...> {
-        using mixin<I,concrete_mixin_t<Ts...>>::mixin;
-    };
-};
-
-struct composed_trait {
-    using tag_t = composed_tag_t;
-};
-
-template <template <typename> typename T, typename... Args>
-struct forward_to_template_mixin {
-    struct is_forward_tag{};
-
-    template <typename U>
-    using concrete_mixin_t = T<U>;
-
-    template <typename U>
-    static constexpr bool can_construct = std::is_constructible_v<U,Args...>;
-    tuple<Args&&...> args;
-};
-
-template <typename T, typename... Args>
-struct forward_to_data_mixin {
-    struct is_forward_tag{};
-
-    template <typename U>
-    using concrete_mixin_t = T;
-
-    template <typename U>
-    static constexpr bool can_construct = std::is_constructible_v<U,Args...>;
-    tuple<Args&&...> args;
-};
-
-
-
-template <any_mixin_trait T, any_mixin_trait... Ts>
-using self_t = typename T::template self_t<Ts...>;
-
-template <any_mixin_trait T, any_mixin_trait... Ts>
-using concrete_mixin_t = typename T::template concrete_mixin_t<Ts...>;
-
-template <any_mixin_trait T, any_mixin_trait... Ts>
-using access_node_t = typename T::template access_node_t<Ts...>;
-
-
-template <template <typename> typename T, any_mixin_trait U, any_mixin_trait... Us>
-inline constexpr bool mixin_matches_trait()
-{
-    using trait_concrete_mixin_t = concrete_mixin_t<U,Us...>;
-    using trait_self_t = self_t<U,Us...>;    
-    return std::is_same_v<trait_concrete_mixin_t, T<trait_self_t>>;
-}
-
-template <typename T, any_mixin_trait U, any_mixin_trait... Us>
-inline constexpr bool mixin_matches_trait()
-{
-    using trait_concrete_mixin_t = concrete_mixin_t<U,Us...>;
-    return std::is_same_v<trait_concrete_mixin_t, T>;
-}
-
-
-template <template <typename> typename T, template <typename> typename U>
-struct is_same_mixin : std::false_type {};
-
-template <template <typename> typename T>
-struct is_same_mixin<T,T> : std::true_type {};
-
-template <template <typename> typename T, template <typename> typename U>
-inline constexpr bool is_same_mixin_v = is_same_mixin<T,U>::value;
-
-template <any_mixin_trait... Ts>
-struct composed_root;
-
-template <size_t I, any_mixin_trait... Ts>
+template <size_t I, template <typename> typename... TTs>
 struct self_type {
-    template <template<typename> typename Constraint>
-    using search_t = typename constraint_filter_t<
-        Constraint,
-        concrete_mixin_t<Ts,Ts...>&...
-    >::tuple_t;
+    constexpr self_type() = default;
 
-    template <template<typename> typename Constraint>
-    friend constexpr auto search(self_type* c)
-    {
-        using result_types = constraint_filter_t<Constraint,concrete_mixin_t<Ts,Ts...>&...>;
-        return make_result_tuple(c, result_types{});
-    }
+    template <template <typename> typename TT>
+    constexpr self_type(self_type<I,TTs...,TT>&) {}
 
-    friend constexpr self_type* self_cast(self_type* c)
-    {
-        return c;
-    }
+    template <template <typename> typename TT>
+    constexpr self_type(self_type<I,TTs...,TT> const&) {}
 
-protected:
-    template <typename U>
-    friend constexpr auto* mixin_cast(self_type* c)
-    {
-        auto* comp = static_cast<composed_root<Ts...>*>(c);
-        return static_cast<U*>(comp);
-    }    
+    template <template <typename> typename TT>
+    constexpr self_type(self_type<I,TTs...,TT>&&) {}
+};
+
+template <size_t I, template <typename> typename... TTs>
+constexpr auto& to_self(self_type<I,TTs...>& m) { return m; }
+
+template <size_t I, template <typename> typename... TTs>
+constexpr auto const& to_self(self_type<I,TTs...> const& m) { return m; }
+
+template <typename T>
+using self_t = copy_cvref_t<T, decltype(to_self(std::declval<std::remove_reference_t<T>&>()))>;
+
+
+//template to start a search through the template list
+template <size_t I, size_t J, template <typename> typename TT, template <typename> typename... TTs>
+struct type_template_pack_element_find : type_template_pack_element_find<I,J+1,TTs...> {};
+
+//specialization to stop type recursion and provide the appropriate template
+//when the search index is equal to the provided index
+template <size_t I, template <typename> typename TT, template <typename> typename... TTs>
+struct type_template_pack_element_find<I,I,TT,TTs...> {
+    template <typename T>
+    using tmpl = TT<T>;
+};
+
+//utility template to get an element of a template template pack
+template <size_t I, template <typename> typename... TTs>
+struct type_template_pack_element : type_template_pack_element_find<I,0,TTs...> {};
+
+template <size_t I, template <typename> typename TT, template <typename> typename... TTs>
+struct get_mixin_type {
+    using type = TT<self_type<I,TTs...>>;
+};
+
+template <size_t I, template <typename> typename... TTs>
+using get_mixin_t = type_template_pack_element<I,TTs...>::template tmpl<self_type<I,TTs...>>;
+
+//cast from a self type to the corresponding mixin type
+template <size_t I, template <typename> typename... TTs>
+constexpr auto& to_mixin(self_type<I,TTs...>& m)
+{
+    return static_cast<get_mixin_t<I,TTs...>&>(m);
+}
+
+template <size_t I, template <typename> typename... TTs>
+constexpr auto const& to_mixin(self_type<I,TTs...> const& m)
+{
+    return static_cast<get_mixin_t<I,TTs...> const&>(m);
+}
+
+template <typename T>
+using mixin_t = copy_cvref_t<T, decltype(to_mixin(std::declval<std::remove_reference_t<T>&>()))>;
+
+
+template <typename T>
+concept any_mixin = complete_type<std::remove_reference_t<T>> and requires(T v) {
+    //a mixin can be implicitly converted to a reference to a self_type
+    //but isn't itself that self_type
+    []<size_t I, template <typename> typename... TTs>(self_type<I,TTs...>&)
+        requires (not std::same_as<self_type<I,TTs...>, remove_cvref_t<T>>)
+    {}(v);
+};
+
+template <typename T, template <typename> typename... TTs>
+concept any_mixin_of = requires(T v) {
+    //a mixin can be implicitly converted to a reference to a self_type
+    []<size_t I>(self_type<I,TTs...>&){}(v);
 };
 
 template <typename... Ts>
-constexpr auto make_result_tuple(auto& component, utl::type_list<Ts&...>) -> utl::tuple<Ts&...>
+struct mixed : Ts... {
+    constexpr mixed(Ts&&... args) : Ts{std::forward<Ts>(args)}... {}
+};
+
+//base template
+template <typename T, template <typename> typename... TTs>
+struct make_mixed;
+
+//specialization to extract indices from an index sequence,
+//so we can make self_types to pass onto the provided templates
+template <size_t... Is, template <typename> typename... TTs>
+struct make_mixed<std::index_sequence<Is...>,TTs...> {
+    using type = mixed<get_mixin_t<Is,TTs...>...>;
+};
+
+template <template <typename> typename... TTs>
+using make_mixed_t = make_mixed<std::make_index_sequence<sizeof...(TTs)>,TTs...>::type;
+
+//user interface for making a composed type
+//this is a struct so that error messages refer to what the user wrote rather than
+//a mess of template nonsense
+template <template <typename> typename... TTs>
+struct mix : public make_mixed_t<TTs...> {
+    using make_mixed_t<TTs...>::make_mixed_t;
+};
+
+
+template <template <typename> typename... TTs>
+constexpr auto& to_mix(mix<TTs...>& m)
 {
-    return {*mixin_cast<Ts>(component)...};
+    return m;
 }
 
-
-//FIXME: this forwarding stuff is hideous.
-
-
-
-template <typename T>
-concept any_forward = requires() { typename T::is_forward_tag; };
-
-template <any_forward T, typename U>
-inline constexpr bool forward_can_construct = T::template can_construct<U>;
-
-template <any_forward T, typename U, typename... Us>
-inline constexpr bool forward_matches_trait = mixin_matches_trait<T::template concrete_mixin_t,U,Us...>();
-
-template <typename T, typename U, typename... Us>
-concept any_forward_matching = any_forward<T> and 
-    any_mixin_trait<U> and (any_mixin_trait<Us> and ...) and
-    forward_matches_trait<T,U,Us...>;
-
-template <template <typename> typename T>
-auto forward(auto&&... args)
+template <template <typename> typename... TTs>
+constexpr auto const& to_mix(mix<TTs...> const& m)
 {
-    using forward_t = forward_to_template_mixin<T,decltype(args)...>;
-    return forward_t{std::forward<decltype(args)>(args)...};
+    return m;
+}
+
+template <size_t I, template <typename> typename... TTs>
+constexpr auto& to_mix(self_type<I,TTs...>& m)
+{
+    return static_cast<mix<TTs...>&>(m);
+}
+
+template <size_t I, template <typename> typename... TTs>
+constexpr auto const& to_mix(self_type<I,TTs...> const& m)
+{
+    return static_cast<mix<TTs...> const&>(m);
 }
 
 template <typename T>
-auto forward(auto&&... args)
-{
-    using forward_t = forward_to_data_mixin<T,decltype(args)...>;
-    return forward_t{std::forward<decltype(args)>(args)...};
-}
-
-
-inline constexpr size_t composition_index = static_cast<size_t>(-1);
-
-
-template <typename M, typename T>
-struct fwd_check_t;
-
-template <typename M, typename T, typename... Args>
-struct fwd_check_t<M,forward_to_data_mixin<T,Args...>&&> {
-    using check_t = decltype(M{std::declval<Args>()...});
-    static_assert(requires { {M{std::declval<Args>()...}}; }, "---- the error above this one means that "
-        "you forwarded invalid arguments to one of your mixins. Take a look at the notes to see where in your code "
-        "the invalid arguments are, and look for 'fwd_check_t<...>' in the notes to figure out which mixin. The "
-        "error text provides details on why the arguments are invalid. Ignore any notes that suggest making changes to "
-        "mixin.hh. Additionally, these invalid arguments will probably result in an error later in your compiler's "
-        "output regarding the lack of viable constructors for the mixin type you are trying to initialize; I "
-        "recommend ignoring it until you've fixed this one. ----");
-};
-
-template <typename M, template <typename> typename T, typename... Args>
-struct fwd_check_t<M,forward_to_template_mixin<T,Args...>&&> {
-    using check_t = decltype(M{std::declval<Args>()...});
-    static_assert(requires { {M{std::declval<Args>()...}}; }, "---- the error above this one means that "
-        "you forwarded invalid arguments to one of your mixins. Take a look at the notes to see where in your code "
-        "the invalid arguments are, and look for 'fwd_check_t<...>' in the notes to figure out which mixin. The "
-        "error text provides details on why the arguments are invalid. Ignore any notes that suggest making changes to "
-        "mixin.hh. Additionally, these invalid arguments will probably result in an error later in your compiler's "
-        "output regarding the lack of viable constructors for the mixin type you are trying to initialize; I "
-        "recommend ignoring it until you've fixed this one. ----");
-
-};
-
-template <typename M, template <typename> typename T, typename... Args>
-    requires std::is_aggregate_v<M>
-struct fwd_check_t<M,forward_to_template_mixin<T,Args...>&&> {
-    using check_t = decltype(M{{},std::declval<Args>()...});
-    static_assert(requires { {M{{},std::declval<Args>()...}}; }, "---- the error above this one means that "
-        "you forwarded invalid arguments to one of your mixins. Take a look at the notes to see where in your code "
-        "the invalid arguments are, and look for 'fwd_check_t<...>' in the notes to figure out which mixin. The "
-        "error text provides details on why the arguments are invalid. Ignore any notes that suggest making changes to "
-        "mixin.hh. Additionally, these invalid arguments will probably result in an error later in your compiler's "
-        "output regarding the lack of viable constructors for the mixin type you are trying to initialize; I "
-        "recommend ignoring it until you've fixed this one. ----");
-};
-
-//FIXME: try to thin out the inheritance at the top here. the closer these constructors are
-// to the type the user is interacting with directly, the better.
-//FIXME: on the other hand, being able to spell the same type as the user is 
-// potentially very useful for error output. maybe? would it make sense to pass
-// the top composed type down the hierarchy?
-
-template <any_mixin_trait... Ts>
-struct composed_root : self_type<composition_index,Ts...>, access_node_t<Ts,Ts...>... {
-    using self_t = self_type<composition_index,Ts...>;
-
-    template <size_t I, any_mixin_trait... Us>
-    friend struct self_type;
-
-    composed_root() requires (std::default_initializable<concrete_mixin_t<Ts,Ts...>> and ...)
-        = default;
-
-    composed_root(composed_root&&) requires (std::move_constructible<concrete_mixin_t<Ts,Ts...>> and ...)
-        = default;
-
-    composed_root(composed_root&) requires (std::copy_constructible<concrete_mixin_t<Ts,Ts...>> and ...)
-        = default;
-
-    composed_root(any_forward_matching<Ts,Ts...> auto&&... forwards)
-        requires requires { (fwd_check_t<typename access_node_t<Ts,Ts...>::concrete_mixin_t,decltype(forwards)>{},...); }
-      : access_node_t<Ts,Ts...>{mixin_forwarding_tag, std::forward<decltype(forwards.args)&&>(forwards.args)}...
-    {}
-
-    template <template<typename> typename Constraint>
-    friend constexpr auto search(composed_root* c)
-    {
-        return search<Constraint>(self_cast(c));
-    }
-
-    friend constexpr auto* self_cast(composed_root* c)
-    {
-        return static_cast<self_t*>(c);
-    }
-};
-
+using mix_t = copy_cvref_t<T,decltype(to_mix(std::declval<std::remove_reference_t<T>&>()))>;
 
 template <typename T>
-using self_cast_t = std::remove_pointer_t<decltype(self_cast(std::declval<T*>()))>;
+concept any_mix = complete_type<remove_cvref_t<T>> and requires(remove_cvref_t<T> v) {
+    //can be implicitly converted to reference to each of its component self_types
+    []<template <typename> typename... TTs>(mix<TTs...>& m){}(v);
+};
 
-template <template <typename> typename Constraint, typename T>
-using search_t = typename self_cast_t<T>::template search_t<Constraint>;
+
+
+//a mix reference is either a reference-to-mix or reference-to-mixin-instance
+//a self_type is not a mix reference; it can be converted to one but it doesn't satisfy
+//this concept.
+template <typename T>
+concept any_mix_ref = complete_type<std::remove_reference_t<T>> and any_mix<T> or any_mixin<T>;
 
 template <typename T>
-concept any_composed = requires(T* t) {
-    self_cast(t);
-};
-
-template <typename T, size_t N>
-concept contains_at_least = (tuple_size_v<T> >= N);
-
-template <typename T, size_t N>
-concept contains_exactly = (tuple_size_v<T> == N);
-
-template <typename T, template <typename> typename Constraint>
-concept has_any_conforming = any_composed<T> and 
-    contains_at_least<search_t<Constraint,T>,1>;
-
-template <typename T, template <typename> typename Constraint>
-concept has_only_one_conforming = has_any_conforming<T,Constraint> and 
-    contains_exactly<search_t<Constraint,T>,1>;
+concept is_complete = requires { sizeof(T); };
 
 
-
-template <size_t I, template <typename> typename T, template <typename> typename... Ts>
-struct get_template_list_element;
-
-template <size_t I, template <typename> typename T, template <typename> typename... Ts>
-struct get_template_list_element : get_template_list_element<I-1,Ts...> {};
-
-template <template <typename> typename T, template <typename> typename... Ts>
-struct get_template_list_element<0,T,Ts...> {
-    template <typename U>
-    using tmpl = T<U>;
-};
-
-template <template<typename> typename... TTs>
-struct unary_template_list
-{
-    template <size_t I>
-    using type = get_template_list_element<I,TTs...>;
-};
 
 namespace detail {
-
-template <typename T, typename U, template <typename> typename... Us>
-struct make_composed_root;
-
-template <typename T, typename U, template <typename> typename... Us>
-using make_composed_root_t = typename make_composed_root<T,U,Us...>::type;
-
-template <size_t... Is, template <typename> typename... Ts, template <typename> typename... Us>
-struct make_composed_root<std::index_sequence<Is...>, interface<Ts...>, Us...> {
-
-    using concrete_mixin_templates = unary_template_list<Ts...,Us...>;
-
-    template <size_t I>
-    struct make_trait;
-
-    template <size_t I>
-        requires (I < sizeof...(Ts))
-    struct make_trait<I> { 
-        template <typename T>
-        using mixin_t = typename concrete_mixin_templates::template type<I>::template tmpl<T>;
-        using type = interface_trait<I,mixin_t>; 
+    template <typename T>
+    struct find_result {
+        using result_t = T;
+        size_t count;
+        constexpr auto& cast(auto& m) 
+        { 
+            auto& mix = to_mix(m); //downcast to the mix type; if it is a mix type this is a no-op
+            return static_cast<copy_cv_t<decltype(m),T&>>(mix); //upcast to the result
+        }
     };
 
-    template <size_t I>
-        requires (I >= sizeof...(Ts))
-    struct make_trait<I> { 
-        template <typename T>
-        using mixin_t = typename concrete_mixin_templates::template type<I>::template tmpl<T>;
-        // using 
-        using type = implementation_trait<I,mixin_t>; 
+    //FIXME: a search needs to not instantiate the type from which it's requested...
+
+    template <auto Pred, size_t I, template <typename> typename... TTs>
+    constexpr auto find_impl(size_t count)
+    {
+        using this_t = get_mixin_t<I,TTs...>;
+        constexpr bool match = satisfies<this_t, Pred>;
+
+        if constexpr(match) {
+            if constexpr(I < sizeof...(TTs) - 1) {
+                //save the first match we find, but keep counting
+                return find_result<this_t>{find_impl<Pred,I+1,TTs...>(count).count + 1};
+            } else {
+                //this is the last one
+                return find_result<this_t>{count + 1};
+            }
+        } else {
+            if constexpr(I < sizeof...(TTs) - 1) {
+                return find_impl<Pred,I+1,TTs...>(count);
+            } else {
+                return find_result<void>{count};
+            }
+        }
+    }
+
+
+
+    template <typename T>
+    struct find_unwrap;
+
+    template <size_t I, template <typename> typename... TTs>
+    struct find_unwrap<self_type<I,TTs...>> {
+        template <auto Pred>
+        static constexpr auto impl() { 
+            return find_impl<Pred,0,TTs...>(0);
+        }
+
+        template <template <typename> typename Mixin>
+        static constexpr auto impl() 
+        { 
+            constexpr auto predicate = []<typename T>(Mixin<T>&){};
+            return find_impl<predicate,0,TTs...>(0);
+        }
     };
 
-    //these traits type turn an index and a list of templates into:
-    // - a concrete self_type
-    // - a concrete "access" type that inherits from the mixin at the specified index
-    // - a concrete mixin type
-    //a self_type takes an index and a list of trait types
-    //it can then get the trait type at the specified index in order to ask for the concrete mixin type
+    template <template <typename> typename... TTs>
+    struct find_unwrap<mix<TTs...>> : find_unwrap<self_type<0,TTs...>> {};
 
-    template <size_t I>
-    using make_trait_t = typename make_trait<I>::type;
+    template <any_mixin T>
+    struct find_unwrap<T> : find_unwrap<self_t<T>> {};
 
-    using type = composed_root<make_trait_t<Is>...>;
-};
+    template <auto Pred, any_mix_ref T>
+    constexpr auto find()
+    {
+        return find_unwrap<T>::template impl<Pred>();
+    }
 
-}
+    template <template <typename> typename Mixin, any_mix_ref T>
+    constexpr auto find()
+    {
+        return find_unwrap<T>::template impl<Mixin>();
+    }
 
-template <typename T, template <typename> typename... Ts>
-struct composed;
+    template <auto Pred>
+    constexpr auto find(any_mix_ref auto& m)
+    {
+        return find<Pred,std::remove_reference_t<decltype(m)>>();
+    }
 
-template <template <typename> typename... Ts, template <typename> typename... Us>
-struct composed<interface<Ts...>,Us...> : 
-    detail::make_composed_root_t<
-        std::make_index_sequence<sizeof...(Ts) + sizeof...(Us)>,
-        interface<Ts...>, 
-        Us...
-    > 
-{
-    using detail::make_composed_root_t<
-        std::make_index_sequence<sizeof...(Ts) + sizeof...(Us)>,
-        interface<Ts...>, 
-        Us...
-    > ::make_composed_root_t;
-};
-
-
-template <template<typename> typename Constraint, has_only_one_conforming<Constraint> T>
-struct as_component {
-    static_assert(has_any_conforming<T,Constraint> and has_only_one_conforming<T,Constraint>);
-
-    using result_t = typename T::template search_t<Constraint>;
-    using ref_t = typename result_t::template get_t<0>;
-    using type = std::remove_reference_t<ref_t>;
-};
-
-
-template <template<typename> typename Constraint, typename T>
-    requires has_only_one_conforming<T,Constraint>
-using as_t = typename as_component<Constraint,T>::type;
-
-template <template<typename> typename Constraint>
-constexpr auto& as(has_only_one_conforming<Constraint> auto* c)
-{    
-    auto items = search<Constraint>(c);
-    return utl::get<0>(items);
-}
-
-template <template<typename> typename Constraint>
-constexpr decltype(auto) as(has_only_one_conforming<Constraint> auto* c, auto&& visitor)
-{
-    return visitor(as<Constraint>(c));
-}
-
-namespace detail {
-
-template <typename... Ts, size_t... Is>
-constexpr void for_each_impl(utl::tuple<Ts...>& items, std::index_sequence<Is...>, auto&& visitor)
-{
-    (visitor(utl::get<Is>(items)),...);
-}
-
-template <typename... Ts>
-constexpr void for_each_impl(utl::tuple<Ts...>& items, auto&& visitor)
-{
-    detail::for_each_impl(items, std::make_index_sequence<sizeof...(Ts)>(), visitor);
-}
-
+    template <template <typename> typename Mixin>
+    constexpr auto find(any_mix_ref auto& m)
+    {
+        return find<Mixin,std::remove_reference_t<decltype(m)>>();
+    }
 } //namespace detail
 
-template <template<typename> typename Constraint>
-constexpr void for_each(has_any_conforming<Constraint> auto* c, auto&& visitor)
+
+
+///////////// find overloads - returns a find result, which contains the type of the found mixin and the count of conforming mixins
+
+//type predicate on a reference-to-composition
+template <auto Pred, template <typename> typename... TTs>
+constexpr auto find(any_mix_ref auto& m)
 {
-    auto items = search<Constraint>(c);
-    detail::for_each_impl(items, visitor);
+    return detail::find<Pred,std::remove_reference_t<decltype(m)>>();
 }
 
-template <template<typename> typename Constraint, typename T>
-constexpr bool has_any()
+//mixin template on a reference-to-composition
+template <template <typename> typename TT, template <typename> typename... TTs>
+constexpr auto find(any_mix_ref auto& m)
 {
-    // using T = std::remove_pointer_t<decltype(c)>;
-    return has_any_conforming<T,Constraint>;
+    return detail::find<TT>(m);
 }
 
-template <template<typename> typename Constraint, typename T>
-constexpr bool has_one()
+template <auto Pred, any_mix_ref T>
+constexpr auto find()
 {
-    // using T = std::remove_pointer_t<decltype(c)>;
-    return has_only_one_conforming<T,Constraint>;
+    return detail::find<Pred,T>();
 }
 
-template <template<typename> typename Constraint, typename T>
-constexpr bool count()
+
+template <template <typename> typename TT, any_mix_ref T>
+constexpr auto find()
 {
-    // using T = std::remove_pointer_t<decltype(c)>;
-    return search_t<Constraint, T>::size();
+    return detail::find<TT,T>();
 }
 
-} //namespace utl
+///////////// count overloads - returns count of conforming mixins in composition
+
+//type predicate on a reference-to-composition
+template <auto Pred>
+constexpr size_t count(any_mix_ref auto& m)
+{
+    return detail::find<Pred>(m).count;
+}
+
+//mixin template on a reference-to-composition
+template <template <typename> typename TT>
+constexpr size_t count(any_mix_ref auto& m)
+{
+    return detail::find<TT>(m).count;
+}
+
+//count of all mixins
+constexpr size_t count(any_mix_ref auto& m)
+{
+    constexpr auto impl = []<template <typename> typename... TTs>(mix<TTs...>&) { return sizeof...(TTs); };
+    return impl(to_mix(m));
+}
+
+//type predicate on a reference-to-composition, template version
+template <auto Pred, any_mix_ref T>
+constexpr size_t count()
+{
+    return detail::find<Pred,T>().count;
+}
+
+//mixin template on a reference-to-composition, template version
+template <template <typename> typename TT, any_mix_ref T>
+constexpr size_t count()
+{
+    return detail::find<TT,T>().count;
+}
+
+//count of all mixins
+template <any_mix_ref T>
+constexpr size_t count()
+{
+    constexpr auto impl = []<template <typename> typename... TTs>(mix<TTs...> const&) { return std::integral_constant<size_t,sizeof...(TTs)>{}; };
+    return std::decay_t<decltype(impl(std::declval<mix_t<T>>()))>::value;
+}
+
+///////////// has overloads - tests whether composition contains a conforming mixin
+
+//type predicate on a reference-to-composition
+template <auto Pred, template <typename> typename... TTs>
+constexpr bool has(any_mix_ref auto& m)
+{
+    return count<Pred>(m) > 0;
+}
+
+//mixin template on a reference-to-composition
+template <template <typename> typename TT, template <typename> typename... TTs>
+constexpr bool has(any_mix_ref auto& m)
+{
+    return count<TT>(m) > 0;
+}
+
+template <auto Pred, any_mix_ref T>
+constexpr bool has()
+{
+    return count<Pred,T>() > 0;
+}
+
+template <template <typename> typename TT, any_mix_ref T>
+constexpr bool has()
+{
+    return count<TT,T>() > 0;
+}
+
+
+
+// it is an error to query using an incomplete type
+template <auto Pred, incomplete_type T>
+constexpr bool has() = delete;
+
+template <template <typename> typename TT, incomplete_type T>
+constexpr bool has() = delete;
+
+// it is an error to query using anything other than a mix_ref
+template <auto Pred, typename T>
+constexpr bool has() = delete;
+
+template <template <typename> typename TT, typename T>
+constexpr bool has() = delete;
+
+
+
+// static_assert(not requires(){ has<[](auto&){},self_type<0)
+
+///////////// as overloads - returns a reference to the first conforming mixin subobject in the composition
+
+//type predicate on a reference-to-composition
+template <auto Pred>
+    requires (not std::same_as<size_t, std::decay_t<decltype(Pred)>>)
+constexpr auto& as(any_mix_ref auto& m)
+{
+    return find<Pred>(m).cast(m);
+}
+
+template <size_t I>
+constexpr auto& as(any_mix_ref auto& m)
+{
+    return to_mixin<I>(m);
+}
+
+//mixin template on a reference-to-composition
+template <template <typename> typename TT>
+constexpr auto& as(any_mix_ref auto& m)
+{
+    return find<TT>(m).cast(m);
+}
+
+
+
+///////////// add
+
+
+namespace detail {
+    template <template <typename> typename TT, template <typename> typename... TTs, size_t... Is>
+    constexpr auto add_impl(std::index_sequence<Is...>, mix<TTs...>&& m, auto&&... args)
+    {
+        return mix<TTs...,TT>{
+            static_cast<get_mixin_t<Is,TTs...>&&>(m)...,
+            {std::forward<decltype(args)>(args)...}
+        };
+    }
+
+    template <template <typename> typename TT, template <typename> typename... TTs, size_t... Is>
+    constexpr auto add_impl(std::index_sequence<Is...>, mix<TTs...>& m, auto&&... args)
+    {
+        return mix<TTs...,TT>{
+            static_cast<get_mixin_t<Is,TTs...>&>(m)...,
+            std::forward<decltype(args)>(args)...
+        };
+    }
+};
+
+
+template <template <typename> typename TT>
+constexpr auto add(any_mix_ref auto&& m, auto&&... args)
+{
+    return detail::add_impl<TT>(
+        std::make_index_sequence<count<decltype(m)>()>{}, 
+        static_cast<mix_t<decltype(m)>>(m), 
+        std::forward<decltype(args)>(args)...
+    );
+}
+
+
+template <typename T, template <typename> typename... TTs>
+struct filter_result {};
+
+template <template <typename> typename TT, typename T, template <typename> typename UU, template <typename> typename... TTs>
+struct remove_filter;
+
+template <template <typename> typename TT, size_t I, size_t... Is, template <typename> typename... TTs>
+struct remove_filter<TT,std::index_sequence<I,Is...>,TT,TTs...> { //this index matches the mixin template
+    static_assert(sizeof...(Is) == sizeof...(TTs));
+
+    //on a match, don't add this index to the sequence
+    static constexpr auto recurse = []() {
+        if constexpr(sizeof...(TTs) > 0) {
+            return typename remove_filter<TT,std::index_sequence<Is...>,TTs...>::result_t{};
+        } else {
+            return filter_result<std::index_sequence<>>{};
+        }
+    };
+    using result_t = std::decay_t<decltype(recurse())>;
+};
+
+template <template <typename> typename TT, size_t I, size_t... Is, template <typename> typename UU, template <typename> typename... TTs>
+struct remove_filter<TT,std::index_sequence<I,Is...>,UU,TTs...> {
+    static_assert(sizeof...(Is) == sizeof...(TTs));
+
+    static constexpr auto prepend_result = []<size_t... Js, template <typename> typename... UUs>(filter_result<std::index_sequence<Js...>,UUs...>) { 
+        return filter_result<std::index_sequence<I,Js...>,UU,UUs...>{}; 
+    };
+
+    //if they don't match, add this index to the front of the sequence
+    static constexpr auto recurse = []() {
+        if constexpr(sizeof...(TTs) > 0) {
+            return prepend_result(typename remove_filter<TT,std::index_sequence<Is...>,TTs...>::result_t{});
+        } else {
+            return filter_result<std::index_sequence<I>,UU>{};
+        }
+    };
+    using result_t = std::decay_t<decltype(recurse())>;
+};
+
+
+template <template <typename> typename TT>
+constexpr auto remove(any_mix_ref auto&& m)
+{
+    auto impl = [&]<template <typename> typename... TTs>(mix<TTs...>&) {
+        auto construct = [&]<size_t... Is, template <typename> typename... UUs>(filter_result<std::index_sequence<Is...>,UUs...>) {
+            if constexpr(std::is_rvalue_reference_v<decltype(m)>) {
+                return mix<UUs...>{std::move(as<Is>(m))...};
+            } else {
+                return mix<UUs...>{as<Is>(m)...};
+            }
+        };
+
+        using filter_result_t = typename remove_filter<TT,std::make_index_sequence<sizeof...(TTs)>,TTs...>::result_t;
+        return construct(filter_result_t{});
+    };
+
+    return impl(to_mix(m));
+}
+
+
+//template to decorate a mixin with another mixin
+//FIXME: this is awkward to use
+template <template <typename> typename TT, template <typename> typename UU>
+struct decorate {
+    template <typename T>
+    using tmpl = UU<TT<T>>;
+};
+
+template <typename T>
+struct decorator : T { using T::T; };
+
+template <typename T>
+constexpr auto& to_decorated(decorator<T>& d)
+{
+    return static_cast<T&>(d);
+}
+
+template <typename T>
+constexpr auto const& to_decorated(decorator<T> const& d)
+{
+    return static_cast<T const&>(d);
+}
+
+
+template <typename T, template <typename> typename TT>
+struct any_impl_type { static constexpr bool value = false; };
+
+template <typename T, template <typename> typename TT>
+struct any_impl_type<TT<T>,TT> { static constexpr bool value = true; };
+
+template <typename T, template <typename> typename TT>
+concept any = any_impl_type<std::remove_cvref_t<T>,TT>::value;
+
+} //namespace utl::mix
